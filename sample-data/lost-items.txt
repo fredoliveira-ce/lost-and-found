@@ -1,0 +1,15 @@
+ItemName: Laptop
+Quantity: 1
+Place: Taxi
+
+ItemName: Headphones
+Quantity: 2
+Place: Railway station
+
+ItemName: Jewels
+Quantity: 4
+Place: Airport
+
+ItemName: Laptop
+Quantity: 1
+Place: Airport
