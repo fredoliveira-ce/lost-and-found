@@ -15,15 +15,15 @@ public class LostItemCsvParser implements LostItemFileParser {
   private static final List<String> REQUIRED_COLUMNS = List.of("itemname", "quantity", "place");
 
   @Override
-  public boolean supports(MultipartFile file) {
-    String filename = file.getOriginalFilename();
+  public boolean supports(final MultipartFile file) {
+    final String filename = file.getOriginalFilename();
     return "text/csv".equals(file.getContentType())
         || (filename != null && filename.toLowerCase().endsWith(".csv"));
   }
 
   @Override
-  public List<LostItem> parse(String text) {
-    List<String> lines = text.lines()
+  public List<LostItem> parse(final String text) {
+    final List<String> lines = text.lines()
         .map(String::trim)
         .filter(line -> !line.isEmpty())
         .toList();
@@ -32,11 +32,11 @@ public class LostItemCsvParser implements LostItemFileParser {
       return List.of();
     }
 
-    Map<String, Integer> columnIndex = indexColumns(splitCsvLine(lines.get(0)));
+    final Map<String, Integer> columnIndex = indexColumns(splitCsvLine(lines.get(0)));
 
-    List<LostItem> items = new ArrayList<>();
-    for (String line : lines.subList(1, lines.size())) {
-      List<String> fields = splitCsvLine(line);
+    final List<LostItem> items = new ArrayList<>();
+    for (final String line : lines.subList(1, lines.size())) {
+      final List<String> fields = splitCsvLine(line);
 
       if (fields.size() < columnIndex.size()) {
         throw new InvalidFileException("CSV row has fewer columns than the header: '" + line + "'.");
@@ -52,13 +52,13 @@ public class LostItemCsvParser implements LostItemFileParser {
     return items;
   }
 
-  private Map<String, Integer> indexColumns(List<String> header) {
-    Map<String, Integer> index = new HashMap<>();
+  private Map<String, Integer> indexColumns(final List<String> header) {
+    final Map<String, Integer> index = new HashMap<>();
     for (int i = 0; i < header.size(); i++) {
       index.put(header.get(i).toLowerCase(), i);
     }
 
-    for (String required : REQUIRED_COLUMNS) {
+    for (final String required : REQUIRED_COLUMNS) {
       if (!index.containsKey(required)) {
         throw new InvalidFileException("CSV file is missing required column '" + required + "'.");
       }
@@ -67,7 +67,7 @@ public class LostItemCsvParser implements LostItemFileParser {
     return index;
   }
 
-  private int parseQuantity(String value) {
+  private int parseQuantity(final String value) {
     try {
       return Integer.parseInt(value.trim());
     } catch (NumberFormatException _) {
@@ -75,13 +75,13 @@ public class LostItemCsvParser implements LostItemFileParser {
     }
   }
 
-  private List<String> splitCsvLine(String line) {
-    List<String> fields = new ArrayList<>();
-    StringBuilder current = new StringBuilder();
+  private List<String> splitCsvLine(final String line) {
+    final List<String> fields = new ArrayList<>();
+    final StringBuilder current = new StringBuilder();
     boolean inQuotes = false;
 
     for (int i = 0; i < line.length(); i++) {
-      char c = line.charAt(i);
+      final char c = line.charAt(i);
 
       if (inQuotes) {
         if (c == '"') {

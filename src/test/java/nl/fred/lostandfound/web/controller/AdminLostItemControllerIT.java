@@ -2,12 +2,14 @@ package nl.fred.lostandfound.web.controller;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import nl.fred.lostandfound.LostAndFoundApplication;
+import nl.fred.lostandfound.data.repository.AccountRepository;
 import nl.fred.lostandfound.data.repository.ClaimRepository;
 import nl.fred.lostandfound.data.repository.LostItemRepository;
 import nl.fred.lostandfound.domain.entity.Claim;
@@ -21,7 +23,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 
 @AutoConfigureMockMvc
@@ -35,6 +39,15 @@ class AdminLostItemControllerIT {
   @Autowired private MockMvc mockMvc;
   @Autowired private LostItemRepository lostItemRepository;
   @Autowired private ClaimRepository claimRepository;
+  @Autowired private AccountRepository accountRepository;
+
+  private static RequestPostProcessor asAdmin() {
+    return jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
+  }
+
+  private static RequestPostProcessor asUser() {
+    return jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"));
+  }
 
   @Nested
   @DisplayName("POST /api/admin/lost-items/import")
@@ -56,7 +69,7 @@ class AdminLostItemControllerIT {
       MockMultipartFile file =
           new MockMultipartFile("file", "lost-items.txt", "text/plain", content.getBytes());
 
-      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file))
+      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file).with(asAdmin()))
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$", hasSize(2)))
           .andExpect(jsonPath("$[0].itemName", is("Laptop")))
@@ -76,7 +89,7 @@ class AdminLostItemControllerIT {
       MockMultipartFile file =
           new MockMultipartFile("file", "lost-items.csv", "text/csv", content.getBytes());
 
-      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file))
+      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file).with(asAdmin()))
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$", hasSize(2)))
           .andExpect(jsonPath("$[0].itemName", is("Jewels")))
@@ -90,7 +103,7 @@ class AdminLostItemControllerIT {
       MockMultipartFile file =
           new MockMultipartFile("file", "lost-items.pdf", "application/pdf", "not really a pdf".getBytes());
 
-      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file))
+      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file).with(asAdmin()))
           .andExpect(status().isBadRequest());
     }
 
@@ -100,8 +113,28 @@ class AdminLostItemControllerIT {
       MockMultipartFile file =
           new MockMultipartFile("file", "lost-items.txt", "text/plain", new byte[0]);
 
-      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file))
+      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file).with(asAdmin()))
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("should return 401 when no token is provided")
+    void requiresAuthentication() throws Exception {
+      MockMultipartFile file =
+          new MockMultipartFile("file", "lost-items.txt", "text/plain", "content".getBytes());
+
+      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file))
+          .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("should return 403 for a non-admin token")
+    void rejectsNonAdminToken() throws Exception {
+      MockMultipartFile file =
+          new MockMultipartFile("file", "lost-items.txt", "text/plain", "content".getBytes());
+
+      mockMvc.perform(multipart(ADMIN_LOST_ITEMS_PATH + "/import").file(file).with(asUser()))
+          .andExpect(status().isForbidden());
     }
 
   }
@@ -113,10 +146,11 @@ class AdminLostItemControllerIT {
     @Test
     @DisplayName("should list lost items together with the users who claimed them")
     void listsLostItemsWithClaimants() throws Exception {
+      Long aliceUserId = accountRepository.findByUsername("alice").orElseThrow().getUser().getId();
       LostItem lostItem = lostItemRepository.save(LostItemMock.getOneWithQuantity(4));
-      Claim claim = claimRepository.save(ClaimMock.getOne(lostItem));
+      Claim claim = claimRepository.save(ClaimMock.getOne(lostItem, aliceUserId));
 
-      mockMvc.perform(get(ADMIN_LOST_ITEMS_PATH + "/claims"))
+      mockMvc.perform(get(ADMIN_LOST_ITEMS_PATH + "/claims").with(asAdmin()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$", hasSize(1)))
           .andExpect(jsonPath("$[0].lostItemId", is(lostItem.getId()), Long.class))
@@ -131,10 +165,24 @@ class AdminLostItemControllerIT {
     void listsLostItemWithNoClaimants() throws Exception {
       LostItem lostItem = lostItemRepository.save(LostItemMock.getOne());
 
-      mockMvc.perform(get(ADMIN_LOST_ITEMS_PATH + "/claims"))
+      mockMvc.perform(get(ADMIN_LOST_ITEMS_PATH + "/claims").with(asAdmin()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$[0].lostItemId", is(lostItem.getId()), Long.class))
           .andExpect(jsonPath("$[0].claimants", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("should return 401 when no token is provided")
+    void requiresAuthentication() throws Exception {
+      mockMvc.perform(get(ADMIN_LOST_ITEMS_PATH + "/claims"))
+          .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("should return 403 for a non-admin token")
+    void rejectsNonAdminToken() throws Exception {
+      mockMvc.perform(get(ADMIN_LOST_ITEMS_PATH + "/claims").with(asUser()))
+          .andExpect(status().isForbidden());
     }
 
   }

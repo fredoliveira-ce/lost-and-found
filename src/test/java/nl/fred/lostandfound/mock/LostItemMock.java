@@ -16,4 +16,12 @@ public class LostItemMock {
         .build();
   }
 
+  public static LostItem getOne(String itemName, String place) {
+    return LostItem.builder()
+        .itemName(itemName)
+        .quantity(2)
+        .place(place)
+        .build();
+  }
+
 }

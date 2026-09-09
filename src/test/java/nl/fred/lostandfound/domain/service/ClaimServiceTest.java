@@ -6,9 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Optional;
 import nl.fred.lostandfound.data.repository.ClaimRepository;
 import nl.fred.lostandfound.data.repository.LostItemRepository;
+import nl.fred.lostandfound.data.repository.UserRepository;
 import nl.fred.lostandfound.domain.entity.Claim;
 import nl.fred.lostandfound.domain.entity.LostItem;
+import nl.fred.lostandfound.domain.entity.User;
 import nl.fred.lostandfound.domain.exception.InsufficientQuantityException;
+import nl.fred.lostandfound.domain.search.LostItemQueryParser;
+import nl.fred.lostandfound.domain.search.LostItemSearchEngine;
 import nl.fred.lostandfound.mock.LostItemMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,20 +26,26 @@ class ClaimServiceTest {
   private ClaimService service;
   private ClaimRepository claimRepository;
   private LostItemRepository lostItemRepository;
+  private UserRepository userRepository;
 
   @BeforeEach
   void beforeEach() {
     claimRepository = Mockito.mock(ClaimRepository.class);
     lostItemRepository = Mockito.mock(LostItemRepository.class);
-    service = new ClaimService(claimRepository, new LostItemService(lostItemRepository));
+    userRepository = Mockito.mock(UserRepository.class);
+    LostItemService lostItemService = new LostItemService(
+        lostItemRepository, new LostItemSearchEngine(), new LostItemQueryParser());
+    service = new ClaimService(claimRepository, lostItemService, userRepository);
   }
 
   @Test
   @DisplayName("should claim a quantity within what remains available")
   void claimSucceedsWithinRemainingQuantity() {
     LostItem lostItem = LostItemMock.getOneWithQuantity(4);
+    User user = User.builder().id(1001L).build();
     Mockito.when(lostItemRepository.findByIdForUpdate(lostItem.getId())).thenReturn(Optional.of(lostItem));
     Mockito.when(claimRepository.sumQuantityByLostItemId(lostItem.getId())).thenReturn(1);
+    Mockito.when(userRepository.getReferenceById(1001L)).thenReturn(user);
     Mockito.when(claimRepository.save(Mockito.any(Claim.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -61,6 +71,7 @@ class ClaimServiceTest {
         .isInstanceOf(InsufficientQuantityException.class);
 
     Mockito.verify(claimRepository, Mockito.never()).save(Mockito.any());
+    Mockito.verifyNoInteractions(userRepository);
   }
 
   @Test
@@ -72,6 +83,7 @@ class ClaimServiceTest {
         .isInstanceOf(nl.fred.lostandfound.domain.exception.LostItemNotFoundException.class);
 
     Mockito.verify(claimRepository, Mockito.never()).save(Mockito.any());
+    Mockito.verifyNoInteractions(userRepository);
   }
 
 }

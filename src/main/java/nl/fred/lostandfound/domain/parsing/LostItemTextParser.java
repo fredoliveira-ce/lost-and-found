@@ -16,22 +16,22 @@ public class LostItemTextParser implements LostItemFileParser {
       Pattern.compile("^(ItemName|Quantity|Place)\\s*:\\s*(.*)$");
 
   @Override
-  public boolean supports(MultipartFile file) {
-    String filename = file.getOriginalFilename();
+  public boolean supports(final MultipartFile file) {
+    final String filename = file.getOriginalFilename();
     return "text/plain".equals(file.getContentType())
         || (filename != null && filename.toLowerCase().endsWith(".txt"));
   }
 
   @Override
-  public List<LostItem> parse(String text) {
-    List<LostItem> items = new ArrayList<>();
+  public List<LostItem> parse(final String text) {
+    final List<LostItem> items = new ArrayList<>();
 
     String itemName = null;
     Integer quantity = null;
     String place = null;
 
-    for (String rawLine : text.split("\\R")) {
-      String line = rawLine.trim();
+    for (final String rawLine : text.split("\\R")) {
+      final String line = rawLine.trim();
 
       if (line.isEmpty() || isSeparatorLine(line)) {
         if (itemName != null && quantity != null && place != null) {
@@ -43,12 +43,12 @@ public class LostItemTextParser implements LostItemFileParser {
         continue;
       }
 
-      Matcher matcher = FIELD_PATTERN.matcher(line);
+      final Matcher matcher = FIELD_PATTERN.matcher(line);
       if (!matcher.matches()) {
         continue;
       }
 
-      String value = matcher.group(2).trim();
+      final String value = matcher.group(2).trim();
 
       switch (matcher.group(1)) {
         case "ItemName" -> {
@@ -72,15 +72,15 @@ public class LostItemTextParser implements LostItemFileParser {
     return items;
   }
 
-  private LostItem toLostItem(String itemName, int quantity, String place) {
+  private LostItem toLostItem(final String itemName, final int quantity, final String place) {
     return LostItem.builder().itemName(itemName).quantity(quantity).place(place).build();
   }
 
-  private boolean isSeparatorLine(String line) {
+  private boolean isSeparatorLine(final String line) {
     return line.chars().allMatch(c -> c == '-' || c == '_' || c == '=');
   }
 
-  private int parseQuantity(String value) {
+  private int parseQuantity(final String value) {
     try {
       return Integer.parseInt(value);
     } catch (NumberFormatException _) {

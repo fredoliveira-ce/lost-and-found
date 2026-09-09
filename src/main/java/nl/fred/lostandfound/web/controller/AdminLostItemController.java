@@ -5,14 +5,13 @@ import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import nl.fred.lostandfound.domain.client.UserInfo;
-import nl.fred.lostandfound.domain.client.UserServiceClient;
+import nl.fred.lostandfound.data.repository.UserRepository;
 import nl.fred.lostandfound.domain.entity.Claim;
 import nl.fred.lostandfound.domain.entity.LostItem;
+import nl.fred.lostandfound.domain.entity.User;
 import nl.fred.lostandfound.domain.service.ClaimService;
 import nl.fred.lostandfound.domain.service.LostItemImportService;
 import nl.fred.lostandfound.domain.service.LostItemService;
@@ -38,12 +37,12 @@ public class AdminLostItemController {
   private final LostItemImportService importService;
   private final LostItemService lostItemService;
   private final ClaimService claimService;
-  private final UserServiceClient userServiceClient;
+  private final UserRepository userRepository;
   private final LostItemResponseMapper mapper;
 
   @ResponseStatus(HttpStatus.CREATED)
   @PostMapping(value = "/import", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
-  public List<LostItemResponse> importLostItems(@RequestParam("file") MultipartFile file) {
+  public List<LostItemResponse> importLostItems(@RequestParam("file") final MultipartFile file) {
     log.info("Admin request to import lost items from file '{}'.", file.getOriginalFilename());
     return mapper.toResponses(importService.importFrom(file));
   }
@@ -58,23 +57,24 @@ public class AdminLostItemController {
     final Map<Long, List<Claim>> claimsByLostItemId = claims.stream()
         .collect(Collectors.groupingBy(claim -> claim.getLostItem().getId()));
 
-    final Map<Long, UserInfo> usersById = claims.stream()
-        .map(Claim::getUserId)
-        .distinct()
-        .collect(Collectors.toMap(Function.identity(), userServiceClient::findUser));
+    final List<Long> userIds = claims.stream()
+            .map(Claim::getUserId).distinct().toList();
+
+    final Map<Long, String> namesByUserId = userRepository.findAllById(userIds).stream()
+        .collect(Collectors.toMap(User::getId, User::getName));
 
     return lostItemService.findAll().stream()
-        .map(lostItem -> toReport(lostItem, claimsByLostItemId.getOrDefault(lostItem.getId(), List.of()), usersById))
+        .map(lostItem -> toReport(lostItem, claimsByLostItemId.getOrDefault(lostItem.getId(), List.of()), namesByUserId))
         .toList();
   }
 
   private LostItemClaimsReportResponse toReport(
-      LostItem lostItem, List<Claim> claims, Map<Long, UserInfo> usersById) {
+      final LostItem lostItem, final List<Claim> claims, final Map<Long, String> namesByUserId) {
 
     final List<ClaimantResponse> claimants = claims.stream()
         .map(claim -> new ClaimantResponse(
             claim.getUserId(),
-            usersById.get(claim.getUserId()).name(),
+            namesByUserId.get(claim.getUserId()),
             claim.getQuantity()))
         .toList();
 

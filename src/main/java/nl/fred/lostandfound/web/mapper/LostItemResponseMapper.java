@@ -14,17 +14,17 @@ public class LostItemResponseMapper {
 
   private final ClaimService claimService;
 
-  public List<LostItemResponse> toResponses(List<LostItem> lostItems) {
-    Map<Long, Integer> claimedByLostItemId = claimService.sumClaimedQuantityByLostItem();
+  public List<LostItemResponse> toResponses(final List<LostItem> lostItems) {
+    final Map<Long, Integer> claimedByLostItemId = claimService.sumClaimedQuantityByLostItem();
 
     return lostItems.stream()
         .map(lostItem -> toResponse(lostItem, claimedByLostItemId.getOrDefault(lostItem.getId(), 0)))
         .toList();
   }
 
-  private LostItemResponse toResponse(LostItem lostItem, int claimedQuantity) {
-    int quantity = lostItem.getQuantity();
-    int quantityRemaining = quantity - claimedQuantity;
+  private LostItemResponse toResponse(final LostItem lostItem, final int claimedQuantity) {
+    final int quantity = lostItem.getQuantity();
+    final int quantityRemaining = quantity - claimedQuantity;
 
     return new LostItemResponse(
         lostItem.getId(), lostItem.getItemName(), quantity, quantityRemaining, lostItem.getPlace());

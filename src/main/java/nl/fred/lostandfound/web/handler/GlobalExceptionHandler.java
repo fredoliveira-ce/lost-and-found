@@ -20,42 +20,42 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 public class GlobalExceptionHandler {
 
   @ExceptionHandler(ApiException.class)
-  public ResponseEntity<ApiErrorResponse> handleApiException(ApiException e) {
+  public ResponseEntity<ApiErrorResponse> handleApiException(final ApiException e) {
     log.warn("Handled API exception [{}]: {}", e.getType(), e.getMessage());
 
-    ApiErrorResponse response = new ApiErrorResponse(e.getType().name(), e.getMessage());
+    final ApiErrorResponse response = new ApiErrorResponse(e.getType().name(), e.getMessage());
 
     return ResponseEntity.status(e.getType().getHttpStatus()).body(response);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<ApiErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
-    String message = e.getBindingResult().getFieldErrors().stream()
+  public ResponseEntity<ApiErrorResponse> handleValidationException(final MethodArgumentNotValidException e) {
+    final String message = e.getBindingResult().getFieldErrors().stream()
         .map(error -> error.getField() + " " + error.getDefaultMessage())
         .collect(Collectors.joining(", "));
 
     log.warn("Handled validation exception: {}", message);
 
-    ApiErrorResponse response = new ApiErrorResponse(ApiExceptionType.BAD_REQUEST.name(), message);
+    final ApiErrorResponse response = new ApiErrorResponse(ApiExceptionType.BAD_REQUEST.name(), message);
 
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
   }
 
   @ExceptionHandler(MaxUploadSizeExceededException.class)
-  public ResponseEntity<ApiErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+  public ResponseEntity<ApiErrorResponse> handleMaxUploadSizeExceeded(final MaxUploadSizeExceededException e) {
     log.warn("Rejected upload exceeding max size: {}", e.getMessage());
 
-    ApiErrorResponse response =
+    final ApiErrorResponse response =
         new ApiErrorResponse(ApiExceptionType.BAD_REQUEST.name(), "Uploaded file is too large.");
 
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
   }
 
   @ExceptionHandler(Exception.class)
-  public ResponseEntity<ApiErrorResponse> handleGenericException(Exception e) {
+  public ResponseEntity<ApiErrorResponse> handleGenericException(final Exception e) {
     log.error("Unhandled exception", e);
 
-    ApiErrorResponse response = new ApiErrorResponse(
+    final ApiErrorResponse response = new ApiErrorResponse(
         ApiExceptionType.INTERNAL_SERVER_ERROR.name(), "An unexpected error occurred.");
 
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);

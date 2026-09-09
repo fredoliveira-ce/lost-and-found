@@ -8,8 +8,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nl.fred.lostandfound.data.repository.ClaimRepository;
 import nl.fred.lostandfound.data.repository.LostItemClaimedQuantity;
+import nl.fred.lostandfound.data.repository.UserRepository;
 import nl.fred.lostandfound.domain.entity.Claim;
 import nl.fred.lostandfound.domain.entity.LostItem;
+import nl.fred.lostandfound.domain.entity.User;
 import nl.fred.lostandfound.domain.exception.InsufficientQuantityException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,9 +23,10 @@ public class ClaimService {
 
   private final ClaimRepository claimRepository;
   private final LostItemService lostItemService;
+  private final UserRepository userRepository;
 
   @Transactional
-  public Claim claim(Long lostItemId, Long userId, int quantity) {
+  public Claim claim(final Long lostItemId, final Long userId, final int quantity) {
     final LostItem lostItem = lostItemService.findByIdForUpdate(lostItemId);
 
     final int alreadyClaimed = claimRepository.sumQuantityByLostItemId(lostItemId);
@@ -35,9 +38,11 @@ public class ClaimService {
       throw new InsufficientQuantityException(lostItemId, quantity, remaining);
     }
 
+    final User user = userRepository.getReferenceById(userId);
+
     final Claim claim = Claim.builder()
         .lostItem(lostItem)
-        .userId(userId)
+        .user(user)
         .quantity(quantity)
         .claimedAt(Instant.now())
         .build();
@@ -51,7 +56,7 @@ public class ClaimService {
 
   public Map<Long, Integer> sumClaimedQuantityByLostItem() {
     final Map<Long, Integer> result = new HashMap<>();
-    for (LostItemClaimedQuantity row : claimRepository.sumQuantityGroupedByLostItemId()) {
+    for (final LostItemClaimedQuantity row : claimRepository.sumQuantityGroupedByLostItemId()) {
       result.put(row.getLostItemId(), row.getTotalQuantity().intValue());
     }
     return result;

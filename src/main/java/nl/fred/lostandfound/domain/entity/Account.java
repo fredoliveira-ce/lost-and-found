@@ -2,15 +2,15 @@ package nl.fred.lostandfound.domain.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,42 +20,36 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Entity
-@Table(name = "claims")
+@Table(name = "accounts")
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"lostItem", "user"})
-public class Claim {
+@ToString(exclude = {"passwordHash", "user"})
+public class Account {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "lost_item_id", nullable = false)
-  private LostItem lostItem;
+  @Column(nullable = false, unique = true)
+  private String username;
+
+  @Column(nullable = false)
+  private String passwordHash;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private Role role;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "user_id", nullable = false)
+  @JoinColumn(name = "user_id", nullable = false, unique = true)
   private User user;
 
-  @Column(nullable = false)
-  private int quantity;
-
-  @Column(nullable = false)
-  private Instant claimedAt;
-
-  @PrePersist
-  void onCreate() {
-    if (claimedAt == null) {
-      claimedAt = Instant.now();
-    }
-  }
-
-  public Long getUserId() {
-    return user.getId();
+  public enum Role {
+    USER,
+    ADMIN
   }
 
 }

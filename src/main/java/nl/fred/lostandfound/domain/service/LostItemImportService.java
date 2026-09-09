@@ -20,18 +20,18 @@ public class LostItemImportService {
   private final List<LostItemFileParser> parsers;
   private final LostItemRepository repository;
 
-  public List<LostItem> importFrom(MultipartFile file) {
+  public List<LostItem> importFrom(final MultipartFile file) {
     if (file.isEmpty()) {
       throw new InvalidFileException("Uploaded file is empty.");
     }
 
-    LostItemFileParser parser = parsers.stream()
+    final LostItemFileParser parser = parsers.stream()
         .filter(candidate -> candidate.supports(file))
         .findFirst()
         .orElseThrow(() -> new InvalidFileException(
             "Unsupported file type: " + file.getContentType()));
 
-    List<LostItem> lostItems = parser.parse(readAsText(file));
+    final List<LostItem> lostItems = parser.parse(readAsText(file));
 
     if (lostItems.isEmpty()) {
       throw new InvalidFileException("No lost items could be extracted from the uploaded file.");
@@ -42,7 +42,7 @@ public class LostItemImportService {
     return repository.saveAll(lostItems);
   }
 
-  private String readAsText(MultipartFile file) {
+  private String readAsText(final MultipartFile file) {
     try {
       return new String(file.getBytes(), StandardCharsets.UTF_8);
     } catch (IOException _) {

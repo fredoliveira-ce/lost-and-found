@@ -7,7 +7,11 @@ import java.util.List;
 import java.util.Optional;
 import nl.fred.lostandfound.data.repository.LostItemRepository;
 import nl.fred.lostandfound.domain.entity.LostItem;
+import nl.fred.lostandfound.domain.exception.BlankQueryException;
 import nl.fred.lostandfound.domain.exception.LostItemNotFoundException;
+import nl.fred.lostandfound.domain.search.LostItemQueryParser;
+import nl.fred.lostandfound.domain.search.LostItemSearchEngine;
+import nl.fred.lostandfound.domain.search.ParsedQuery;
 import nl.fred.lostandfound.mock.LostItemMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,11 +23,15 @@ class LostItemServiceTest {
 
   private LostItemService service;
   private LostItemRepository repository;
+  private LostItemSearchEngine searchEngine;
+  private LostItemQueryParser queryParser;
 
   @BeforeEach
   void beforeEach() {
     repository = Mockito.mock(LostItemRepository.class);
-    service = new LostItemService(repository);
+    searchEngine = Mockito.mock(LostItemSearchEngine.class);
+    queryParser = Mockito.mock(LostItemQueryParser.class);
+    service = new LostItemService(repository, searchEngine, queryParser);
   }
 
   @Test
@@ -67,6 +75,55 @@ class LostItemServiceTest {
 
     assertThat(result).isEqualTo(lostItems);
     Mockito.verify(repository).saveAll(lostItems);
+  }
+
+  @Test
+  @DisplayName("should throw when searching with a blank query")
+  void searchThrowsForBlankQuery() {
+    assertThatThrownBy(() -> service.search(" "))
+        .isInstanceOf(BlankQueryException.class);
+
+    Mockito.verifyNoInteractions(searchEngine);
+  }
+
+  @Test
+  @DisplayName("should delegate search to the search engine")
+  void searchDelegatesToSearchEngine() {
+    LostItem lostItem = LostItemMock.getOne();
+    List<LostItem> allItems = List.of(lostItem);
+    Mockito.when(repository.findAll()).thenReturn(allItems);
+    Mockito.when(searchEngine.search("laptop", allItems)).thenReturn(allItems);
+
+    List<LostItem> result = service.search("laptop");
+
+    assertThat(result).isEqualTo(allItems);
+  }
+
+  @Test
+  @DisplayName("should throw when running a query with a blank query")
+  void queryThrowsForBlankQuery() {
+    assertThatThrownBy(() -> service.query(null))
+        .isInstanceOf(BlankQueryException.class);
+
+    Mockito.verifyNoInteractions(queryParser);
+  }
+
+  @Test
+  @DisplayName("should filter lost items using the parsed query")
+  void queryFiltersUsingParsedQuery() {
+    LostItem matching = LostItemMock.getOne("Wallet", "Airport");
+    LostItem nonMatching = LostItemMock.getOne("Bag", "Cafeteria");
+    List<LostItem> allItems = List.of(matching, nonMatching);
+    List<String> knownPlaces = List.of("Airport", "Cafeteria");
+
+    Mockito.when(repository.findDistinctPlaces()).thenReturn(knownPlaces);
+    Mockito.when(repository.findAll()).thenReturn(allItems);
+    Mockito.when(queryParser.parse("wallet at the airport", knownPlaces))
+        .thenReturn(new ParsedQuery("Airport", null, null, List.of()));
+
+    List<LostItem> result = service.query("wallet at the airport");
+
+    assertThat(result).containsExactly(matching);
   }
 
 }
