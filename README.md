@@ -15,6 +15,9 @@ The app starts on `http://localhost:8081`. It uses an in-memory H2 database
 external client to point at it (no bundled H2 web console either, on
 purpose — keeps the dependency footprint minimal).
 
+Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
+— no login needed to view them, only to call the endpoints themselves.
+
 ```bash
 ./mvnw test              # unit tests
 ./mvnw verify             # unit + integration tests (*IT classes, via failsafe)
@@ -185,8 +188,6 @@ config/
   Flyway/Liquibase migrations instead.
 - **No pagination** on `GET /api/lost-items` (or `/search`, `/query`) — fine
   at demo scale, would need `Pageable` for a real dataset.
-- **No OpenAPI/Swagger UI** — kept the dependency footprint minimal; would
-  add `springdoc-openapi` for interactive docs.
 - **Search is local, not AI-powered.** Fuzzy matching and query parsing
   both run in-process (Levenshtein distance, a fixed date/place
   vocabulary) — no LLM or embeddings API involved. Keeps the demo runnable
