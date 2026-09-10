@@ -46,7 +46,7 @@ class LostItemControllerIT {
 
   @BeforeEach
   void resolveUserId() {
-    userId = accountRepository.findByUsername("alice").orElseThrow().getUser().getId();
+    userId = accountRepository.findByUsername("alice").orElseThrow().getId();
   }
 
   @Nested

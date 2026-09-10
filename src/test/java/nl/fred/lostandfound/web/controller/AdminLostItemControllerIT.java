@@ -146,7 +146,7 @@ class AdminLostItemControllerIT {
     @Test
     @DisplayName("should list lost items together with the users who claimed them")
     void listsLostItemsWithClaimants() throws Exception {
-      Long aliceUserId = accountRepository.findByUsername("alice").orElseThrow().getUser().getId();
+      Long aliceUserId = accountRepository.findByUsername("alice").orElseThrow().getId();
       LostItem lostItem = lostItemRepository.save(LostItemMock.getOneWithQuantity(4));
       Claim claim = claimRepository.save(ClaimMock.getOne(lostItem, aliceUserId));
 

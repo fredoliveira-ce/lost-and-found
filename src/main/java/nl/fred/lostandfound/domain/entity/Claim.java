@@ -26,7 +26,7 @@ import lombok.ToString;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"lostItem", "user"})
+@ToString(exclude = "lostItem")
 public class Claim {
 
   @Id
@@ -37,9 +37,8 @@ public class Claim {
   @JoinColumn(name = "lost_item_id", nullable = false)
   private LostItem lostItem;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
+  @Column(nullable = false)
+  private Long userId;
 
   @Column(nullable = false)
   private int quantity;
@@ -52,10 +51,6 @@ public class Claim {
     if (claimedAt == null) {
       claimedAt = Instant.now();
     }
-  }
-
-  public Long getUserId() {
-    return user.getId();
   }
 
 }

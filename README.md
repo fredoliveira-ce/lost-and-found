@@ -94,27 +94,26 @@ curl http://localhost:8081/api/admin/lost-items/claims \
 
 ## Auth
 
-JWT auth, built on Spring Security's OAuth2 Resource Server support. Tokens
-are self-issued (no external identity provider) — `POST /api/auth/login`
-checks a username/password against the seeded accounts and hands back a
-1-hour token signed with an RSA key. Every other endpoint needs
-`Authorization: Bearer <token>`, and `/api/admin/**` also needs the token's
-`role` claim to be `ADMIN`.
+Login uses JWT tokens (via Spring Security's OAuth2 Resource Server
+support). The app signs its own tokens — there's no outside login
+provider. `POST /api/auth/login` checks your username and password, then
+gives back a token that works for 1 hour. Every other endpoint needs that
+token in the `Authorization` header, and admin endpoints also check that
+the token says `ADMIN`.
 
-`Account` and `User` are kept separate on purpose: `Account` is how you log
-in (username, password, role), `User` is who you are (just a name for now)
-— and that's the one a `Claim` actually points to. It's a strict one-to-one
-today, but keeping identity separate from credentials means claims stay
-meaningful even if another way to log in shows up later.
+Your account's ID is also your user ID — the same number shows up as the
+claimant on a `Claim`. To turn that ID into a name for the admin report,
+we use a mock service instead of a database lookup.
 
-The signing key is generated fresh every time the app starts, not saved
-anywhere. That's fine here since the H2 database resets on every restart too
-— old tokens just stop working, same as everything else. Accounts are
-seeded on startup rather than self-registered (see `AccountSeeder`).
+The key used to sign tokens is created fresh every time the app starts —
+it's never saved. That's fine here, since the database also resets on
+every restart, so old tokens simply stop working, like everything else.
+Accounts are created automatically on startup, not through sign-up (see
+`AccountSeeder`).
 
-**Not doing:** refresh tokens, revoking tokens, logging in via an external
-provider, or letting people sign themselves up. All reasonable in a real
-app, just more than this one needs right now.
+**Not doing:** refresh tokens, logging a token out early, logging in
+through another provider, or letting people sign up themselves. All fine
+for a real app, just more than this one needs.
 
 ## Search
 
@@ -160,15 +159,18 @@ status: `404` (not found), `400` (bad request / validation), `401`
 
 ```
 domain/
-  entity/      LostItem, Claim, Account, User - JPA entities, but framework-agnostic otherwise
+  entity/      LostItem, Claim, Account - JPA entities, but framework-agnostic otherwise
   service/     business logic (claim quantity rules, import orchestration, login)
   parsing/     LostItemFileParser port (upload text -> List<LostItem>)
   search/      LostItemSearchEngine (fuzzy scoring), LostItemQueryParser (NL -> place/date/keyword filter)
+  client/      UserServiceClient port (userId -> name), mocked - see data/client
   exception/   ApiException hierarchy, one type per HTTP status
 
 data/
-  repository/  LostItemRepository, ClaimRepository, AccountRepository, UserRepository -
+  repository/  LostItemRepository, ClaimRepository, AccountRepository -
                Spring Data JPA repositories, injected directly into domain.service
+  client/      MockUserServiceClient - hardcoded id-to-name map, standing in
+               for a real external user-info service
 
 web/
   controller/  thin REST controllers, no business logic
@@ -184,8 +186,12 @@ config/
 ## Known simplifications (and what production would add)
 
 - **Schema managed by Hibernate (`ddl-auto=create-drop`)** against an
-  in-memory H2 database. Production would use a persistent database with
-  Flyway/Liquibase migrations instead.
+  in-memory H2 database. Production would use a real, persistent database —
+  PostgreSQL is the natural choice here, since claim safety already relies
+  on a row-level lock (`@Lock(PESSIMISTIC_WRITE)` in `ClaimService`), and
+  Postgres's locking behavior is exactly what that code assumes. Schema
+  changes would go through Flyway or Liquibase migrations instead of
+  Hibernate auto-generating the schema.
 - **No pagination** on `GET /api/lost-items` (or `/search`, `/query`) — fine
   at demo scale, would need `Pageable` for a real dataset.
 - **Search is local, not AI-powered.** Fuzzy matching and query parsing
@@ -193,6 +199,9 @@ config/
   vocabulary) — no LLM or embeddings API involved. Keeps the demo runnable
   with zero signup, config, or cost. A production version might swap in
   real NLP or a vector search for better recall.
+- **`UserServiceClient` is a hardcoded mock**, not a real call to an
+  external service — per the assignment brief's own instruction to write
+  the least code needed since it's only a mock.
 
 ## Possible Improvements
 

@@ -37,7 +37,7 @@ public class AuthService {
         .issuedAt(now)
         .expiresAt(now.plus(TOKEN_LIFETIME_HOURS, ChronoUnit.HOURS))
         .subject(account.getUsername())
-        .claim("uid", account.getUser().getId())
+        .claim("uid", account.getId())
         .claim("role", account.getRole().name())
         .build();
 

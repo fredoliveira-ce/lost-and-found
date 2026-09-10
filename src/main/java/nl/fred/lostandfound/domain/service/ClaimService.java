@@ -8,10 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nl.fred.lostandfound.data.repository.ClaimRepository;
 import nl.fred.lostandfound.data.repository.LostItemClaimedQuantity;
-import nl.fred.lostandfound.data.repository.UserRepository;
 import nl.fred.lostandfound.domain.entity.Claim;
 import nl.fred.lostandfound.domain.entity.LostItem;
-import nl.fred.lostandfound.domain.entity.User;
 import nl.fred.lostandfound.domain.exception.InsufficientQuantityException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +21,6 @@ public class ClaimService {
 
   private final ClaimRepository claimRepository;
   private final LostItemService lostItemService;
-  private final UserRepository userRepository;
 
   @Transactional
   public Claim claim(final Long lostItemId, final Long userId, final int quantity) {
@@ -38,11 +35,9 @@ public class ClaimService {
       throw new InsufficientQuantityException(lostItemId, quantity, remaining);
     }
 
-    final User user = userRepository.getReferenceById(userId);
-
     final Claim claim = Claim.builder()
         .lostItem(lostItem)
-        .user(user)
+        .userId(userId)
         .quantity(quantity)
         .claimedAt(Instant.now())
         .build();
