@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @DisplayName("Runs all tests for GlobalExceptionHandler")
 class GlobalExceptionHandlerTest {
@@ -35,6 +36,17 @@ class GlobalExceptionHandlerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     assertThat(response.getBody().type()).isEqualTo(ApiExceptionType.INTERNAL_SERVER_ERROR.name());
     assertThat(response.getBody().message()).doesNotContain("sensitive internal detail");
+  }
+
+  @Test
+  @DisplayName("should map an oversized upload to 400 with a fixed message")
+  void handlesMaxUploadSizeExceeded() {
+    ResponseEntity<ApiErrorResponse> response =
+        handler.handleMaxUploadSizeExceeded(new MaxUploadSizeExceededException(5_000_000L));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody().type()).isEqualTo(ApiExceptionType.BAD_REQUEST.name());
+    assertThat(response.getBody().message()).isEqualTo("Uploaded file is too large.");
   }
 
 }

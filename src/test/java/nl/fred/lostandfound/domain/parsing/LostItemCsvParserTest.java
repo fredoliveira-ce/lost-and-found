@@ -32,6 +32,25 @@ class LostItemCsvParserTest {
   }
 
   @Test
+  @DisplayName("should not support a file with no original filename and the wrong content type")
+  void doesNotSupportFileWithNoFilename() {
+    MockMultipartFile noFilename = new MockMultipartFile("file", null, "application/octet-stream", new byte[0]);
+
+    assertThat(parser.supports(noFilename)).isFalse();
+  }
+
+  @Test
+  @DisplayName("should un-escape a doubled quote inside a quoted field")
+  void unescapesDoubledQuoteInQuotedField() {
+    String csv = """
+        ItemName,Quantity,Place
+        "Bag with a ""VIP"" tag",1,Airport
+        """;
+
+    assertFields(parser.parse(csv)).containsExactly(tuple("Bag with a \"VIP\" tag", 1, "Airport"));
+  }
+
+  @Test
   @DisplayName("should parse rows using the header to locate each column")
   void parsesRowsByHeader() {
     String csv = """

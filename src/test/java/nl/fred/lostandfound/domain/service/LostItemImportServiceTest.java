@@ -3,6 +3,7 @@ package nl.fred.lostandfound.domain.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.util.List;
 import nl.fred.lostandfound.data.repository.LostItemRepository;
 import nl.fred.lostandfound.domain.entity.LostItem;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 @DisplayName("Runs all tests for LostItemImportService")
 class LostItemImportServiceTest {
@@ -66,6 +68,19 @@ class LostItemImportServiceTest {
     MockMultipartFile file = new MockMultipartFile("file", "items.exe", "application/octet-stream", "content".getBytes());
 
     Mockito.when(parser.supports(file)).thenReturn(false);
+
+    assertThatThrownBy(() -> service.importFrom(file))
+        .isInstanceOf(InvalidFileException.class);
+
+    Mockito.verifyNoInteractions(repository);
+  }
+
+  @Test
+  @DisplayName("should reject a file that cannot be read")
+  void rejectsUnreadableFile() throws Exception {
+    MultipartFile file = Mockito.mock(MultipartFile.class);
+    Mockito.when(parser.supports(file)).thenReturn(true);
+    Mockito.when(file.getBytes()).thenThrow(new IOException("disk error"));
 
     assertThatThrownBy(() -> service.importFrom(file))
         .isInstanceOf(InvalidFileException.class);

@@ -3,6 +3,7 @@ package nl.fred.lostandfound.domain.parsing;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import nl.fred.lostandfound.domain.entity.LostItem;
 import nl.fred.lostandfound.domain.exception.InvalidFileException;
@@ -18,7 +19,7 @@ public class LostItemCsvParser implements LostItemFileParser {
   public boolean supports(final MultipartFile file) {
     final String filename = file.getOriginalFilename();
     return "text/csv".equals(file.getContentType())
-        || (filename != null && filename.toLowerCase().endsWith(".csv"));
+        || (filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".csv"));
   }
 
   @Override
@@ -55,7 +56,7 @@ public class LostItemCsvParser implements LostItemFileParser {
   private Map<String, Integer> indexColumns(final List<String> header) {
     final Map<String, Integer> index = new HashMap<>();
     for (int i = 0; i < header.size(); i++) {
-      index.put(header.get(i).toLowerCase(), i);
+      index.put(header.get(i).toLowerCase(Locale.ROOT), i);
     }
 
     for (final String required : REQUIRED_COLUMNS) {
@@ -75,6 +76,17 @@ public class LostItemCsvParser implements LostItemFileParser {
     }
   }
 
+  // PMD CognitiveComplexity/AvoidLiteralsInIfCondition/AvoidReassigningLoopVariables:
+  // this is a hand-rolled CSV tokenizer - comparing characters against the
+  // literal quote/comma is the entire point, and advancing `i` an extra
+  // step is how an escaped "" pair gets consumed as a single quote. None
+  // of that simplifies by extracting it further; it's inherent to writing
+  // a small state machine for CSV escaping by hand.
+  @SuppressWarnings({
+      "PMD.CognitiveComplexity",
+      "PMD.AvoidLiteralsInIfCondition",
+      "PMD.AvoidReassigningLoopVariables"
+  })
   private List<String> splitCsvLine(final String line) {
     final List<String> fields = new ArrayList<>();
     final StringBuilder current = new StringBuilder();

@@ -33,6 +33,62 @@ class LostItemQueryParserTest {
   }
 
   @Test
+  @DisplayName("should fall back to a distinctive word when the full place name isn't mentioned")
+  void fallsBackToDistinctiveWordOfMultiWordPlace() {
+    ParsedQuery result = parser.parse(
+        "left near the library", List.of("Central Library", "Cafeteria"));
+
+    assertThat(result.place()).isEqualTo("Central Library");
+  }
+
+  @Test
+  @DisplayName("should prefer the longer/more specific exact match when multiple places match")
+  void prefersLongerExactMatchOverShorterOne() {
+    ParsedQuery result = parser.parse(
+        "left at the airport terminal", List.of("Airport", "Airport Terminal"));
+
+    assertThat(result.place()).isEqualTo("Airport Terminal");
+  }
+
+  @Test
+  @DisplayName("should keep the first exact match when a later, shorter match isn't more specific")
+  void keepsExactMatchOverLessSpecificOne() {
+    ParsedQuery result = parser.parse(
+        "left at the airport terminal", List.of("Airport Terminal", "Airport"));
+
+    assertThat(result.place()).isEqualTo("Airport Terminal");
+  }
+
+  @Test
+  @DisplayName("should skip a place word that is also a stopword when falling back")
+  void fallbackSkipsStopwordPlaceWord() {
+    ParsedQuery result = parser.parse(
+        "left it with someone", List.of("With Annex"));
+
+    assertThat(result.place()).isNull();
+  }
+
+  @Test
+  @DisplayName("should prefer the longer of two distinctive fallback words that both match")
+  void fallbackPrefersLongerOfTwoMatchingWords() {
+    ParsedQuery result = parser.parse(
+        "seen near the library annex",
+        List.of("Central Annex", "Central Library"));
+
+    assertThat(result.place()).isEqualTo("Central Library");
+  }
+
+  @Test
+  @DisplayName("should treat a null query the same as an empty one")
+  void treatsNullQueryAsEmpty() {
+    ParsedQuery result = parser.parse(null, KNOWN_PLACES);
+
+    assertThat(result.place()).isNull();
+    assertThat(result.from()).isNull();
+    assertThat(result.itemKeywords()).isEmpty();
+  }
+
+  @Test
   @DisplayName("should recognize 'today'")
   void recognizesToday() {
     ParsedQuery result = parser.parse("lost today", KNOWN_PLACES);

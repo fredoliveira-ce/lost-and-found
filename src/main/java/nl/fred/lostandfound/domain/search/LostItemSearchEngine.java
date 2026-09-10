@@ -2,6 +2,7 @@ package nl.fred.lostandfound.domain.search;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import nl.fred.lostandfound.domain.entity.LostItem;
@@ -13,6 +14,8 @@ public class LostItemSearchEngine {
   private static final int EXACT_TOKEN_SCORE = 3;
   private static final int SUBSTRING_SCORE = 2;
   private static final int MIN_FUZZY_QUERY_TOKEN_LENGTH = 4;
+  private static final int LONG_ITEM_TOKEN_LENGTH = 7;
+  private static final int SHORT_ITEM_TOKEN_LENGTH = 4;
 
   public List<LostItem> search(final String query, final List<LostItem> candidates) {
     final List<String> queryTokens = tokenize(query);
@@ -26,7 +29,7 @@ public class LostItemSearchEngine {
   }
 
   private int score(final List<String> queryTokens, final LostItem item) {
-    final String itemText = (item.getItemName() + " " + item.getPlace()).toLowerCase();
+    final String itemText = (item.getItemName() + " " + item.getPlace()).toLowerCase(Locale.ROOT);
     final Set<String> itemTokens = Set.copyOf(tokenize(itemText));
 
     int score = 0;
@@ -65,10 +68,10 @@ public class LostItemSearchEngine {
   }
 
   private int allowedDistance(final int itemTokenLength) {
-    if (itemTokenLength >= 7) {
+    if (itemTokenLength >= LONG_ITEM_TOKEN_LENGTH) {
       return 2;
     }
-    if (itemTokenLength >= 4) {
+    if (itemTokenLength >= SHORT_ITEM_TOKEN_LENGTH) {
       return 1;
     }
     return 0;
@@ -78,7 +81,7 @@ public class LostItemSearchEngine {
     if (text == null) {
       return List.of();
     }
-    return List.of(text.toLowerCase().split("[^a-z0-9]+")).stream()
+    return List.of(text.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")).stream()
         .filter(token -> !token.isBlank())
         .collect(Collectors.toList());
   }

@@ -16,6 +16,13 @@
 
 	<properties>
 		<java.version>25</java.version>
+		<!--
+			Extra JVM args for the test forks, appended alongside JaCoCo's own
+			agent argument (see jacocoArgLine below). Empty by default; override
+			on the command line for a local JDK that still needs a flag like
+			enable-preview (two dashes, omitted here so this stays valid XML).
+		-->
+		<test.jvm.extraArgs></test.jvm.extraArgs>
 	</properties>
 
 	<dependencies>
@@ -129,7 +136,17 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>@{jacocoArgLine} ${test.jvm.extraArgs}</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
+				<configuration>
+					<argLine>@{jacocoArgLine} ${test.jvm.extraArgs}</argLine>
+				</configuration>
 				<executions>
 					<execution>
 						<goals>
@@ -138,6 +155,91 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.15</version>
+				<executions>
+					<execution>
+						<id>jacoco-prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+						<configuration>
+							<!--
+								Named explicitly (instead of the default "argLine") so it
+								composes cleanly with test.jvm.extraArgs above rather than
+								colliding with any -DargLine passed on the command line.
+							-->
+							<propertyName>jacocoArgLine</propertyName>
+						</configuration>
+					</execution>
+					<execution>
+						<!--
+							Runs after both unit tests (Surefire) and integration tests
+							(Failsafe) at the verify phase, so the report reflects combined
+							coverage from both, not just unit tests.
+						-->
+						<id>jacoco-report</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<version>4.10.4.1</version>
+				<configuration>
+					<effort>Max</effort>
+					<threshold>Medium</threshold>
+					<excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+				</configuration>
+				<executions>
+					<execution>
+						<id>spotbugs-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>3.28.0</version>
+				<configuration>
+					<rulesets>
+						<ruleset>pmd-ruleset.xml</ruleset>
+					</rulesets>
+					<printFailingErrors>true</printFailingErrors>
+					<generateReports>false</generateReports>
+					<linkXRef>false</linkXRef>
+				</configuration>
+				<executions>
+					<execution>
+						<id>pmd-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!--
+				SonarQube: not bound to any lifecycle phase, since it needs a running
+				server (local or SonarCloud) that this project doesn't assume anyone
+				has. Run explicitly (see README for the docker command to start a
+				local SonarQube server first).
+			-->
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>5.8.0.7211</version>
 			</plugin>
 		</plugins>
 	</build>

@@ -20,7 +20,28 @@ Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
 
 ```bash
 ./mvnw test              # unit tests
-./mvnw verify             # unit + integration tests (*IT classes, via failsafe)
+./mvnw verify             # unit + integration tests, plus static analysis (see below)
+```
+
+## Static analysis
+
+`./mvnw verify` also runs SpotBugs and PMD, and fails the build on real
+findings — both are wired into the `verify` phase, so they run every time
+CI (or you) runs the full check. The ruleset lives in `pmd-ruleset.xml`;
+a few rules are excluded there with a reason each (things like
+`LawOfDemeter` and `GuardLogStatement`, which flag completely normal
+Spring/SLF4J code as a smell). Individual findings that don't fit this
+codebase get a local `@SuppressWarnings("PMD....")` with a one-line
+comment explaining why, rather than a blanket exclusion — see e.g.
+`SecurityConfig` or `LostItemTextParser`.
+
+SonarQube is also wired in (`sonar-maven-plugin`), but not bound to any
+build phase, since it needs a running server this project doesn't assume
+anyone has. Run it against a local instance:
+
+```bash
+docker run -d --name sonarqube -p 9000:9000 sonarqube:community
+./mvnw sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.token=<token>
 ```
 
 ## Trying it out

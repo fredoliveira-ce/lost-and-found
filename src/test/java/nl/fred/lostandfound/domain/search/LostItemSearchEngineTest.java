@@ -84,4 +84,24 @@ class LostItemSearchEngineTest {
     assertThat(result).isEmpty();
   }
 
+  @Test
+  @DisplayName("should not fuzzy-match against very short item tokens, even a close typo")
+  void doesNotFuzzyMatchAgainstShortItemTokens() {
+    LostItem keys = LostItemMock.getOne("Key", "Lab");
+
+    List<LostItem> result = engine.search("keys", List.of(keys));
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("should return no results for a null query")
+  void returnsNoResultsForNullQuery() {
+    LostItem laptop = LostItemMock.getOne("Laptop", "Airport");
+
+    List<LostItem> result = engine.search(null, List.of(laptop));
+
+    assertThat(result).isEmpty();
+  }
+
 }

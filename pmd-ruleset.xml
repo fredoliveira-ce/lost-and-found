@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="lost-and-found"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+  <description>
+    Lost &amp; Found's PMD rules: the standard bestpractices/errorprone/design
+    categories, minus a handful of rules that don't fit this codebase - each
+    exclusion below is a deliberate call, not an oversight, and matches how
+    this project documents every other trade-off (see README "Known
+    simplifications"). Anything not excluded here still applies; genuine
+    findings get fixed in code or suppressed locally with a comment, not
+    excluded wholesale.
+  </description>
+
+  <rule ref="category/java/bestpractices.xml">
+    <!--
+      This project logs through SLF4J's {} placeholders everywhere (see
+      any log.info/log.warn call), which already defers message
+      construction until a log level actually accepts it - the expensive-
+      string-building problem this rule guards against doesn't apply.
+      Wrapping every log call in `if (log.isInfoEnabled())` would be pure
+      ceremony here.
+    -->
+    <exclude name="GuardLogStatement" />
+  </rule>
+
+  <rule ref="category/java/errorprone.xml">
+    <!--
+      These exceptions are plain RuntimeExceptions used for REST error
+      mapping within a single JVM - they're never serialized across a wire
+      or to disk. Adding a serialVersionUID to all 7 would be pure
+      boilerplate with no real behavior it protects.
+    -->
+    <exclude name="MissingSerialVersionUID" />
+  </rule>
+
+  <rule ref="category/java/design.xml">
+    <!--
+      LawOfDemeter flags completely ordinary framework calls (like
+      `response.getWriter()` or `item.getCreatedAt()`) as "coupling". At
+      this project's scale that's noise, not a real design smell.
+    -->
+    <exclude name="LawOfDemeter" />
+    <!--
+      Needs an explicit list of allowed packages/classes to be meaningful
+      (it errors out with "No packages or classes specified" otherwise) -
+      that kind of package-boundary enforcement matters for larger
+      multi-module systems, not a single-module demo API.
+    -->
+    <exclude name="LoosePackageCoupling" />
+  </rule>
+
+</ruleset>

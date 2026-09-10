@@ -40,6 +40,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import tools.jackson.databind.json.JsonMapper;
 
 
+// PMD ExcessiveImports: this class wires together JWT encoding/decoding,
+// the RSA key pair, the security filter chain, and the error-response
+// mapping - one cohesive "security setup" responsibility that genuinely
+// needs all these types. Splitting it up would scatter one concern across
+// several files rather than simplify anything.
+@SuppressWarnings("PMD.ExcessiveImports")
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -94,6 +100,12 @@ public class SecurityConfig {
     return converter;
   }
 
+  // PMD SignatureDeclareThrowsException: `throws Exception` here is the
+  // standard Spring Security idiom - HttpSecurity.build() itself declares
+  // it, and every Spring Security tutorial/sample uses this exact
+  // signature. Catching and re-wrapping it would just add ceremony around
+  // a checked exception that Spring's own API forces on this method.
+  @SuppressWarnings("PMD.SignatureDeclareThrowsException")
   @Bean
   public SecurityFilterChain securityFilterChain(
       final HttpSecurity http, final JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
@@ -115,6 +127,10 @@ public class SecurityConfig {
     return http.build();
   }
 
+  // PMD UnusedFormalParameter: `request`/`authException` are unused in the
+  // body, but the method signature is fixed by AuthenticationEntryPoint
+  // (used above as a method reference) - it can't be trimmed down.
+  @SuppressWarnings("PMD.UnusedFormalParameter")
   private void handleAuthenticationFailure(
       final HttpServletRequest request, final HttpServletResponse response,
       final AuthenticationException authException)
@@ -123,6 +139,8 @@ public class SecurityConfig {
         "Missing or invalid authentication token.");
   }
 
+  // PMD UnusedFormalParameter: same as above - fixed by AccessDeniedHandler.
+  @SuppressWarnings("PMD.UnusedFormalParameter")
   private void handleAccessDenied(
       final HttpServletRequest request, final HttpServletResponse response,
       final AccessDeniedException accessDeniedException)

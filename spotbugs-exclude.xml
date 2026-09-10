@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- Lombok-generated builders/constructors sometimes trip EI_EXPOSE_REP
+       on collection/array fields; nothing in this project's entities uses
+       mutable array fields, so no exclusions are needed yet. Add specific,
+       justified exclusions here if real findings turn out to be false
+       positives - don't blanket-suppress a whole category. -->
+
+  <!-- SF_SWITCH_NO_DEFAULT: the switch in LostItemTextParser.parse only
+       ever sees a value captured by FIELD_PATTERN, whose regex guarantees
+       group(1) is one of the three literal case labels already handled.
+       A default arm would be provably unreachable dead code, so it was
+       deliberately omitted rather than added just to satisfy this check. -->
+  <Match>
+    <Class name="nl.fred.lostandfound.domain.parsing.LostItemTextParser" />
+    <Method name="parse" />
+    <Bug pattern="SF_SWITCH_NO_DEFAULT" />
+  </Match>
+</FindBugsFilter>

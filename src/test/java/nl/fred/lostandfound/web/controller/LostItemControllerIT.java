@@ -240,6 +240,38 @@ class LostItemControllerIT {
       mockMvc.perform(request)
           .andExpect(status().isBadRequest());
     }
+
+    @Test
+    @DisplayName("should return 401 when the token has no 'uid' claim")
+    void claimFailsWhenTokenHasNoUid() throws Exception {
+      LostItem saved = lostItemRepository.save(LostItemMock.getOneWithQuantity(1));
+
+      MockHttpServletRequestBuilder request = post(LOST_ITEMS_PATH + "/" + saved.getId() + "/claims")
+          .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(mapper.writeValueAsString(new ClaimRequest(1)));
+
+      mockMvc.perform(request)
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.message", is("Token is missing or has an invalid 'uid' claim.")));
+    }
+
+    @Test
+    @DisplayName("should return 401 when the token's 'uid' claim isn't a number")
+    void claimFailsWhenUidIsNotANumber() throws Exception {
+      LostItem saved = lostItemRepository.save(LostItemMock.getOneWithQuantity(1));
+
+      MockHttpServletRequestBuilder request = post(LOST_ITEMS_PATH + "/" + saved.getId() + "/claims")
+          .with(jwt()
+              .jwt(builder -> builder.claim("uid", "not-a-number"))
+              .authorities(new SimpleGrantedAuthority("ROLE_USER")))
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(mapper.writeValueAsString(new ClaimRequest(1)));
+
+      mockMvc.perform(request)
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.message", is("Token is missing or has an invalid 'uid' claim.")));
+    }
   }
 
   private RequestPostProcessor asUser() {

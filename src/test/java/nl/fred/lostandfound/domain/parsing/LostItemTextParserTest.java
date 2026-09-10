@@ -32,6 +32,14 @@ class LostItemTextParserTest {
   }
 
   @Test
+  @DisplayName("should not support a file with no original filename and the wrong content type")
+  void doesNotSupportFileWithNoFilename() {
+    MockMultipartFile noFilename = new MockMultipartFile("file", null, "application/octet-stream", new byte[0]);
+
+    assertThat(parser.supports(noFilename)).isFalse();
+  }
+
+  @Test
   @DisplayName("should parse blocks separated by a blank line")
   void parsesBlankLineSeparatedBlocks() {
     String text = """
@@ -120,6 +128,19 @@ class LostItemTextParserTest {
         """;
 
     assertFields(parser.parse(text)).containsExactly(tuple("Laptop", 1, "Taxi"));
+  }
+
+  @Test
+  @DisplayName("should discard an incomplete leading record when ItemName repeats before it's complete")
+  void discardsIncompleteLeadingRecordOnItemNameRepeat() {
+    String text = """
+        ItemName: Jewels
+        ItemName: Laptop
+        Quantity: 1
+        Place: Airport
+        """;
+
+    assertFields(parser.parse(text)).containsExactly(tuple("Laptop", 1, "Airport"));
   }
 
   @Test

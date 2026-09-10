@@ -8,11 +8,18 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
+// PMD TooManyMethods: a direct trade-off against CognitiveComplexity/
+// CyclomaticComplexity, which this class used to trip before extractPlace
+// was split into findExactPlaceMatch/findFallbackPlaceMatch - more small,
+// single-purpose private methods instead of fewer, more complex ones.
+// That's the right side of the trade-off here.
+@SuppressWarnings("PMD.TooManyMethods")
 @Component
 public class LostItemQueryParser {
 
@@ -24,10 +31,12 @@ public class LostItemQueryParser {
   private static final int MIN_PLACE_WORD_LENGTH = 4;
   private static final int MIN_KEYWORD_LENGTH = 2;
 
+  private static final String WORD_BOUNDARY = "\\b";
+
   private static final Pattern LAST_N_DAYS = Pattern.compile("last\\s+(\\d+)\\s+days?");
 
   public ParsedQuery parse(final String query, final List<String> knownPlaces) {
-    String workingText = query == null ? "" : query.toLowerCase();
+    String workingText = query == null ? "" : query.toLowerCase(Locale.ROOT);
     final ZoneId zone = ZoneId.systemDefault();
 
     final DateRange dateRange = extractDateRange(workingText, zone);
@@ -89,12 +98,31 @@ public class LostItemQueryParser {
     return new DateRange(null, null, workingText);
   }
 
+  // Split into two passes (PMD flagged the combined method's
+  // CognitiveComplexity/CyclomaticComplexity) - each pass is independently
+  // simple; extractPlace just tries the first, then falls back to the
+  // second.
   private PlaceMatch extractPlace(final String workingText, final List<String> knownPlaces) {
+    final PlaceMatch exactMatch = findExactPlaceMatch(workingText, knownPlaces);
+    if (exactMatch != null) {
+      return exactMatch;
+    }
+
+    final PlaceMatch fallbackMatch = findFallbackPlaceMatch(workingText, knownPlaces);
+    if (fallbackMatch != null) {
+      return fallbackMatch;
+    }
+
+    return new PlaceMatch(null, workingText);
+  }
+
+  /** First pass: does the working text contain a whole known place name? */
+  private PlaceMatch findExactPlaceMatch(final String workingText, final List<String> knownPlaces) {
     String bestMatch = null;
     String bestMatchLower = null;
 
     for (final String place : knownPlaces) {
-      final String placeLower = place.toLowerCase();
+      final String placeLower = place.toLowerCase(Locale.ROOT);
       if (workingText.contains(placeLower)
           && (bestMatchLower == null || placeLower.length() > bestMatchLower.length())) {
         bestMatch = place;
@@ -102,15 +130,16 @@ public class LostItemQueryParser {
       }
     }
 
-    if (bestMatch != null) {
-      return new PlaceMatch(bestMatch, strip(workingText, bestMatchLower));
-    }
+    return bestMatch == null ? null : new PlaceMatch(bestMatch, strip(workingText, bestMatchLower));
+  }
 
+  /** Fallback pass: does the working text mention a distinctive word from a known place? */
+  private PlaceMatch findFallbackPlaceMatch(final String workingText, final List<String> knownPlaces) {
     String bestPlace = null;
     String bestWord = null;
 
     for (final String place : knownPlaces) {
-      for (final String word : place.toLowerCase().split("[^a-z0-9]+")) {
+      for (final String word : place.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
         if (word.length() < MIN_PLACE_WORD_LENGTH || STOPWORDS.contains(word)) {
           continue;
         }
@@ -122,11 +151,7 @@ public class LostItemQueryParser {
       }
     }
 
-    if (bestPlace != null) {
-      return new PlaceMatch(bestPlace, stripWholeWord(workingText, bestWord));
-    }
-
-    return new PlaceMatch(null, workingText);
+    return bestPlace == null ? null : new PlaceMatch(bestPlace, stripWholeWord(workingText, bestWord));
   }
 
   private List<String> extractKeywords(final String workingText) {
@@ -140,11 +165,11 @@ public class LostItemQueryParser {
   }
 
   private boolean containsWholeWord(final String text, final String word) {
-    return Pattern.compile("\\b" + Pattern.quote(word) + "\\b").matcher(text).find();
+    return Pattern.compile(WORD_BOUNDARY + Pattern.quote(word) + WORD_BOUNDARY).matcher(text).find();
   }
 
   private String stripWholeWord(final String text, final String word) {
-    return Pattern.compile("\\b" + Pattern.quote(word) + "\\b").matcher(text).replaceFirst(" ");
+    return Pattern.compile(WORD_BOUNDARY + Pattern.quote(word) + WORD_BOUNDARY).matcher(text).replaceFirst(" ");
   }
 
   private String strip(final String text, final String match) {
