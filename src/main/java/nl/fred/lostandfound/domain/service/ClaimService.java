@@ -1,5 +1,6 @@
 package nl.fred.lostandfound.domain.service;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ public class ClaimService {
 
   private final ClaimRepository claimRepository;
   private final LostItemService lostItemService;
+  private final MeterRegistry meterRegistry;
 
   @Transactional
   public Claim claim(final Long lostItemId, final Long userId, final int quantity) {
@@ -42,7 +44,9 @@ public class ClaimService {
         .claimedAt(Instant.now())
         .build();
 
-    return claimRepository.save(claim);
+    final Claim saved = claimRepository.save(claim);
+    meterRegistry.counter("lostitem.claims").increment();
+    return saved;
   }
 
   public List<Claim> findAll() {

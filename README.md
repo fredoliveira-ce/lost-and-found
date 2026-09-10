@@ -44,6 +44,15 @@ docker run -d --name sonarqube -p 9000:9000 sonarqube:community
 ./mvnw sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.token=<token>
 ```
 
+## Metrics
+
+Spring Boot Actuator and Micrometer are wired in. `/actuator/health` is
+public (for a load balancer or container to poll); everything else, like
+`/actuator/metrics` and `/actuator/prometheus`, needs an admin token, same
+as the rest of the admin API. Prometheus can scrape `/actuator/prometheus`
+directly. Alongside the usual HTTP/JVM metrics, there's one custom counter,
+`lostitem.claims`, that counts successful claims.
+
 ## Trying it out
 
 Upload a sample file (see `sample-data/`) as an admin — either the plain-text

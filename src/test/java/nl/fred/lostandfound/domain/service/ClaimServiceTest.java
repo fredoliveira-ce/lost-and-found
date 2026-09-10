@@ -3,6 +3,7 @@ package nl.fred.lostandfound.domain.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Optional;
 import nl.fred.lostandfound.data.repository.ClaimRepository;
 import nl.fred.lostandfound.data.repository.LostItemRepository;
@@ -24,14 +25,16 @@ class ClaimServiceTest {
   private ClaimService service;
   private ClaimRepository claimRepository;
   private LostItemRepository lostItemRepository;
+  private SimpleMeterRegistry meterRegistry;
 
   @BeforeEach
   void beforeEach() {
     claimRepository = Mockito.mock(ClaimRepository.class);
     lostItemRepository = Mockito.mock(LostItemRepository.class);
+    meterRegistry = new SimpleMeterRegistry();
     LostItemService lostItemService = new LostItemService(
         lostItemRepository, new LostItemSearchEngine(), new LostItemQueryParser());
-    service = new ClaimService(claimRepository, lostItemService);
+    service = new ClaimService(claimRepository, lostItemService, meterRegistry);
   }
 
   @Test
@@ -52,6 +55,8 @@ class ClaimServiceTest {
     ArgumentCaptor<Claim> captor = ArgumentCaptor.forClass(Claim.class);
     Mockito.verify(claimRepository).save(captor.capture());
     assertThat(captor.getValue().getClaimedAt()).isNotNull();
+
+    assertThat(meterRegistry.counter("lostitem.claims").count()).isEqualTo(1.0);
   }
 
   @Test
