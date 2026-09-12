@@ -63,10 +63,11 @@ class ClaimServiceTest {
   @DisplayName("should reject a claim that exceeds the remaining quantity")
   void claimFailsWhenExceedingRemainingQuantity() {
     LostItem lostItem = LostItemMock.getOneWithQuantity(4);
-    Mockito.when(lostItemRepository.findByIdForUpdate(lostItem.getId())).thenReturn(Optional.of(lostItem));
-    Mockito.when(claimRepository.sumQuantityByLostItemId(lostItem.getId())).thenReturn(3);
+    Long lostItemId = lostItem.getId();
+    Mockito.when(lostItemRepository.findByIdForUpdate(lostItemId)).thenReturn(Optional.of(lostItem));
+    Mockito.when(claimRepository.sumQuantityByLostItemId(lostItemId)).thenReturn(3);
 
-    assertThatThrownBy(() -> service.claim(lostItem.getId(), 1001L, 2))
+    assertThatThrownBy(() -> service.claim(lostItemId, 1001L, 2))
         .isInstanceOf(InsufficientQuantityException.class);
 
     Mockito.verify(claimRepository, Mockito.never()).save(Mockito.any());

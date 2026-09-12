@@ -14,32 +14,32 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-@Entity
-@Table(name = "accounts")
 @Getter
 @Builder
+@ToString(exclude = "passwordHash")
+@Entity
+@Table(name = "accounts")
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
-@EqualsAndHashCode(of = "id")
-@ToString(exclude = "passwordHash")
 public class Account {
 
-  @Id
-  private Long id;
+    @Id
+    private Long id;
 
-  @Column(nullable = false, unique = true)
-  private String username;
+    @Column(nullable = false, unique = true)
+    private String username;
 
-  @Column(nullable = false)
-  private String passwordHash;
+    @Column(nullable = false)
+    private String passwordHash;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false)
-  private Role role;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
-  public enum Role {
-    USER,
-    ADMIN
-  }
+    public enum Role {
+        USER,
+        ADMIN
+    }
 
 }

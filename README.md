@@ -41,8 +41,45 @@ anyone has. Run it against a local instance:
 
 ```bash
 docker run -d --name sonarqube -p 9000:9000 sonarqube:community
-./mvnw sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.token=<token>
+./mvnw clean verify sonar:sonar "-Dsonar.host.url=http://localhost:9000" "-Dsonar.token=<token>"
 ```
+
+Run `verify` first (in the same command, as above) so JaCoCo's report already
+exists on disk — otherwise Sonar reports 0% coverage. On Windows, quote each
+`-D` flag as shown; without quotes, `cmd.exe` can mis-split the URL.
+
+`./mvnw test` also runs an ArchUnit check (`ArchitectureTest`) that enforces
+the layering by hand instead of by convention: the domain layer can't depend
+on the web layer, and controllers can't reach a repository directly — they
+have to go through a domain service.
+
+## Dependency scanning
+
+`./mvnw org.owasp:dependency-check-maven:13.0.0:check` scans every
+dependency against the NVD vulnerability database and fails the build on
+anything CVSS 9+. It's not bound to `verify` since the first run downloads
+the whole NVD database, which is slow. You'll need a free NVD API key
+(https://nvd.nist.gov/developers/request-an-api-key) in an `NVD_API_KEY`
+environment variable — never commit it, the `pom.xml` only references the
+variable name.
+
+## Load testing
+
+Gatling isn't bound to the build either — it's just an HTTP client, so it
+needs the app already running. Start it, then run the load test against it:
+
+```bash
+./mvnw spring-boot:run
+# in another terminal:
+./mvnw gatling:test
+```
+
+`LostAndFoundSimulation` covers the browse path (login, list, search,
+natural-language query) — the read-heavy traffic real usage is expected to
+look like. It deliberately skips the claim endpoint: claims have limited
+stock per item, so a repeatable load test would either run out or need a
+reset step between runs. Gatling writes an HTML report under
+`target/gatling/` with response time percentiles and throughput.
 
 ## Metrics
 

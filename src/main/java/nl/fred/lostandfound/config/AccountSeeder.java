@@ -14,34 +14,34 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AccountSeeder implements CommandLineRunner {
 
-  private static final String SEED_PASSWORD = "password123";
+    private static final String SEED_PASSWORD = "password123";
 
-  private final AccountRepository accountRepository;
-  private final PasswordEncoder passwordEncoder;
+    private final AccountRepository accountRepository;
+    private final PasswordEncoder passwordEncoder;
 
-  @Override
-  public void run(final String... args) {
-    if (accountRepository.count() > 0) {
-      return;
+    @Override
+    public void run(final String... args) {
+        if (accountRepository.count() > 0) {
+            return;
+        }
+
+        final String hash = passwordEncoder.encode(SEED_PASSWORD);
+
+        seed(1001L, "alice", hash, Role.USER);
+        seed(1002L, "brian", hash, Role.USER);
+        seed(1003L, "carla", hash, Role.USER);
+        seed(9001L, "admin", hash, Role.ADMIN);
+
+        log.info("Seeded {} demo account(s).", 4);
     }
 
-    final String hash = passwordEncoder.encode(SEED_PASSWORD);
-
-    seed(1001L, "alice", hash, Role.USER);
-    seed(1002L, "brian", hash, Role.USER);
-    seed(1003L, "carla", hash, Role.USER);
-    seed(9001L, "admin", hash, Role.ADMIN);
-
-    log.info("Seeded {} demo account(s).", 4);
-  }
-
-  private void seed(final Long id, final String username, final String passwordHash, final Role role) {
-    accountRepository.save(Account.builder()
-        .id(id)
-        .username(username)
-        .passwordHash(passwordHash)
-        .role(role)
-        .build());
-  }
+    private void seed(final Long id, final String username, final String passwordHash, final Role role) {
+        accountRepository.save(Account.builder()
+                .id(id)
+                .username(username)
+                .passwordHash(passwordHash)
+                .role(role)
+                .build());
+    }
 
 }

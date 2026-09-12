@@ -1,13 +1,14 @@
 package nl.fred.lostandfound.domain.parsing;
 
-import java.util.List;
 import nl.fred.lostandfound.domain.entity.LostItem;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 public interface LostItemFileParser {
 
-  boolean supports(MultipartFile file);
+    boolean supports(MultipartFile file);
 
-  List<LostItem> parse(String text);
+    List<LostItem> parse(String text);
 
 }

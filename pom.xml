@@ -23,6 +23,12 @@
 			enable-preview (two dashes, omitted here so this stays valid XML).
 		-->
 		<test.jvm.extraArgs></test.jvm.extraArgs>
+		<!--
+			Spring Boot 4.1.1 pins Tomcat 11.0.24, which OWASP Dependency-Check
+			flags with several critical CVEs (9.1-9.8). Overriding here rather
+			than waiting for the next Spring Boot release.
+		-->
+		<tomcat.version>11.0.25</tomcat.version>
 	</properties>
 
 	<dependencies>
@@ -97,6 +103,18 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<version>1.5.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.gatling.highcharts</groupId>
+			<artifactId>gatling-charts-highcharts</artifactId>
+			<version>3.15.1</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -249,6 +267,35 @@
 				<groupId>org.sonarsource.scanner.maven</groupId>
 				<artifactId>sonar-maven-plugin</artifactId>
 				<version>5.8.0.7211</version>
+			</plugin>
+			<!--
+				OWASP Dependency-Check: not bound to any lifecycle phase, since its
+				first run downloads the NVD vulnerability database (slow, and rate-
+				limited without an API key) - not something every build should pay
+				for. Run explicitly (see README). The API key comes from the
+				NVD_API_KEY environment variable, never committed here.
+			-->
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>13.0.0</version>
+				<configuration>
+					<failBuildOnCVSS>9</failBuildOnCVSS>
+					<nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+				</configuration>
+			</plugin>
+			<!--
+				Gatling: not bound to any lifecycle phase, since a load test needs
+				the app already running somewhere - it's a plain HTTP client, not
+				something that starts the app itself. Run explicitly (see README).
+			-->
+			<plugin>
+				<groupId>io.gatling</groupId>
+				<artifactId>gatling-maven-plugin</artifactId>
+				<version>4.21.12</version>
+				<configuration>
+					<simulationClass>nl.fred.lostandfound.loadtest.LostAndFoundSimulation</simulationClass>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
