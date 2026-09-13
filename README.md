@@ -1,6 +1,4 @@
-# Lost & Found
-
-[![CI](https://github.com/fredoliveira-ce/lost-and-found/actions/workflows/ci.yml/badge.svg)](https://github.com/fredoliveira-ce/lost-and-found/actions/workflows/ci.yml)
+# Lost & Found [![CI](https://github.com/fredoliveira-ce/lost-and-found/actions/workflows/ci.yml/badge.svg)](https://github.com/fredoliveira-ce/lost-and-found/actions/workflows/ci.yml)
 
 A Spring Boot service where an admin uploads a file of lost items, users
 browse and claim them (partial quantities, multiple claimants per item), and
