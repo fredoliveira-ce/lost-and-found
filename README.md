@@ -1,5 +1,7 @@
 # Lost & Found
 
+[![CI](https://github.com/fredoliveira-ce/lost-and-found/actions/workflows/ci.yml/badge.svg)](https://github.com/fredoliveira-ce/lost-and-found/actions/workflows/ci.yml)
+
 A Spring Boot service where an admin uploads a file of lost items, users
 browse and claim them (partial quantities, multiple claimants per item), and
 admins can review who claimed what.
@@ -34,6 +36,9 @@ Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
 `./mvnw verify` also runs SpotBugs and PMD, and fails the build on real
 findings — both are wired into the `verify` phase, so they run every time
 CI (or you) runs the full check. The ruleset lives in `pmd-ruleset.xml`.
+GitHub Actions (`.github/workflows/ci.yml`) runs exactly that on every push
+and pull request — the badge at the top of this README is that pipeline,
+not a claim.
 
 SonarQube is also wired in (`sonar-maven-plugin`), but not bound to any
 build phase, since it needs a running server this project doesn't assume
@@ -342,6 +347,13 @@ same time safe — one succeeds, one gets a 409, never an oversell. Taking
 `userId` from the JWT instead of the request body is deliberate too: an
 earlier version trusted the body directly, which let anyone claim on
 someone else's behalf just by changing a field.
+
+`ClaimConcurrencyIT` doesn't just describe that guarantee, it tests it: 8
+threads fire the same claim at once for an item with a stock of 1, with no
+coordination beyond a shared starting signal, then asserts exactly one
+succeeded and the item's claimed quantity is still 1, not 8. It runs as
+part of `./mvnw verify`, so CI checks this on every push, not just when
+someone remembers to think about it.
 
 ![Swagger UI listing all seven endpoints, grouped by controller](docs/screenshots/swagger-ui.png)
 
