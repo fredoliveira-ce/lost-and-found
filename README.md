@@ -4,6 +4,11 @@ A Spring Boot service where an admin uploads a file of lost items, users
 browse and claim them (partial quantities, multiple claimants per item), and
 admins can review who claimed what.
 
+Lost your patience reading READMEs before trying the thing :D? Fair — go find
+it live instead: **https://lost-and-found-fred.netlify.app/** (give it a moment to wake).
+No commands, no Docker, no login prompts. Just click around.
+
+
 ## Running it
 
 ```bash
@@ -392,6 +397,12 @@ config/
 - **`UserServiceClient` is a hardcoded mock**, not a real call to an
   external service — per the assignment brief's own instruction to write
   the least code needed since it's only a mock.
+- **Importing the same file twice creates duplicate items**, not one —
+  there's no check for that, so a double-click or a retried upload
+  silently doubles what's listed. Production would either hash the file
+  and reject an exact repeat, or match on name+quantity+place instead
+  (riskier, since two different physical items can genuinely share a
+  description).
 
 ## Possible Improvements
 
