@@ -6,8 +6,9 @@ admins can review who claimed what.
 
 Lost your patience reading READMEs before trying the thing :D? Fair — go find
 it live instead: **https://lost-and-found-fred.netlify.app/** (give it a moment to wake).
-No commands, no Docker, no login prompts. Just click around.
-
+No commands, no Docker to install — just log in and click around. Use
+`alice` / `password123` as a regular user, or `admin` / `password123` to see
+the admin side (importing items, the claims report).
 
 ## Running it
 
