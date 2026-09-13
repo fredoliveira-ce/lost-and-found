@@ -73,15 +73,6 @@ public class SecurityConfig {
     @Value("${management.server.port:${server.port:8080}}")
     private int managementPort;
 
-    // Multiple instances behind a load balancer must all trust the same
-    // signing key, or a token issued by one instance fails validation on
-    // another. app.jwt.private-key/public-key (base64 DER, PKCS8/X509) let
-    // a real deployment share one key via a Secret; a single local
-    // instance just gets a fresh, throwaway key each restart, as before.
-    // Only one of the two being set is a misconfiguration (a typo'd Secret
-    // key, a partial rollout) - failing fast here beats silently falling
-    // back to a random key, which would look fine on startup but quietly
-    // reintroduce the cross-instance token failure this exists to fix.
     @Bean
     public KeyPair rsaKeyPair() throws NoSuchAlgorithmException, InvalidKeySpecException {
         final boolean hasPrivateKey = !configuredPrivateKey.isBlank();
@@ -163,12 +154,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        // Actuator lives on its own port (management.server.port), never exposed
-                        // alongside the public API - a collector like Prometheus can't hold a
-                        // rotating JWT, so this endpoint relies on network isolation instead of
-                        // app-level auth. In production that port would be restricted to the
-                        // monitoring network only. requireManagementPortIsSeparate() below is
-                        // the safety net if that separation is ever misconfigured.
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
@@ -181,12 +166,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // The permitAll on /actuator/** above is only safe because actuator runs
-    // on a separate, network-isolated port - if management.server.port ever
-    // matched server.port (a missing property in some environment, a copy-
-    // paste of this config elsewhere), that rule would expose health/metrics/
-    // prometheus with zero authentication on the public API port too. Failing
-    // startup here trades that silent exposure for a loud, obvious error.
     private void requireManagementPortIsSeparate() {
         if (managementPort == serverPort) {
             throw new IllegalStateException(

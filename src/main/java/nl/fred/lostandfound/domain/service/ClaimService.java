@@ -28,7 +28,6 @@ public class ClaimService {
     @Transactional
     public Claim claim(final Long lostItemId, final Long userId, final int quantity) {
         final LostItem lostItem = lostItemService.findByIdForUpdate(lostItemId);
-
         final int alreadyClaimed = claimRepository.sumQuantityByLostItemId(lostItemId);
         final int remaining = lostItem.getQuantity() - alreadyClaimed;
 

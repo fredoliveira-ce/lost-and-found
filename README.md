@@ -18,13 +18,9 @@ the admin side (importing items, the claims report).
 ./mvnw spring-boot:run
 ```
 
-The app starts on `http://localhost:8081`. It uses an in-memory H2 database
-(reset on every restart) — it's private to that JVM, so there's no live
-external client to point at it (no bundled H2 web console either, on
-purpose — keeps the dependency footprint minimal).
+The app starts on `http://localhost:8081`. It uses an in-memory H2 database (reset on every restart).
 
 Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
-— no login needed to view them, only to call the endpoints themselves.
 
 ```bash
 ./mvnw test              # unit tests
@@ -37,8 +33,7 @@ Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
 findings — both are wired into the `verify` phase, so they run every time
 CI (or you) runs the full check. The ruleset lives in `pmd-ruleset.xml`.
 GitHub Actions (`.github/workflows/ci.yml`) runs exactly that on every push
-and pull request — the badge at the top of this README is that pipeline,
-not a claim.
+and pull request — the badge at the top of this README is that pipeline.
 
 SonarQube is also wired in (`sonar-maven-plugin`), but not bound to any
 build phase, since it needs a running server this project doesn't assume
@@ -55,10 +50,9 @@ exists on disk — otherwise Sonar reports 0% coverage. On Windows, quote each
 
 ![SonarQube dashboard: quality gate passed, 0 open issues, 95.2% coverage](docs/screenshots/sonar-dashboard.png)
 
-The 61 "accepted issues" are deliberate, documented calls, not hidden
+The 61 "accepted issues" are deliberate not hidden
 findings — things like this project's own Mockito style, or a couple of
-already-justified PMD/SpotBugs trade-offs Sonar flags independently (see
-`SecurityConfig`'s CSRF comment, for one).
+already-justified PMD/SpotBugs trade-offs Sonar flags independently.
 
 `./mvnw test` also runs an ArchUnit check (`ArchitectureTest`) that enforces
 the layering by hand instead of by convention: the domain layer can't depend
@@ -137,7 +131,7 @@ cd monitoring && docker compose up -d
 
 ## Running multiple instances
 
-Running more than one instance needs two things fixed first, both handled
+Running more than one instance needs two things first, both handled
 behind config rather than code changes:
 
 - **A real, shared database.** H2 (the default) is in-memory and private
@@ -344,16 +338,13 @@ blocks concurrent claims on the same item"]
 
 The row-level lock is what makes two people claiming the last unit at the
 same time safe — one succeeds, one gets a 409, never an oversell. Taking
-`userId` from the JWT instead of the request body is deliberate too: an
-earlier version trusted the body directly, which let anyone claim on
-someone else's behalf just by changing a field.
+`userId` from the JWT instead of the request body is deliberate too.
 
 `ClaimConcurrencyIT` doesn't just describe that guarantee, it tests it: 8
 threads fire the same claim at once for an item with a stock of 1, with no
 coordination beyond a shared starting signal, then asserts exactly one
 succeeded and the item's claimed quantity is still 1, not 8. It runs as
-part of `./mvnw verify`, so CI checks this on every push, not just when
-someone remembers to think about it.
+part of `./mvnw verify`.
 
 ![Swagger UI listing all seven endpoints, grouped by controller](docs/screenshots/swagger-ui.png)
 

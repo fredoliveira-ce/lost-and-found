@@ -36,16 +36,6 @@ public class AccountSeeder implements CommandLineRunner {
         log.info("Seeded demo account(s).");
     }
 
-    // count()>0 up above is a check-then-act race: with a shared database and
-    // multiple instances starting around the same time, more than one can see
-    // zero accounts and try to seed the same fixed ids. Catching the resulting
-    // constraint violation per account (rather than failing app startup) makes
-    // this safe - whichever instance's insert wins, the end state is the same.
-    // DataIntegrityViolationException is broad, but this method only ever
-    // inserts one fully-controlled, hardcoded Account - the id/username
-    // uniqueness race above is the only integrity violation it can actually
-    // hit, so narrowing further wouldn't catch a real class of bug it doesn't
-    // already catch.
     private void seed(final Long id, final String username, final String passwordHash, final Role role) {
         try {
             accountRepository.save(Account.builder()

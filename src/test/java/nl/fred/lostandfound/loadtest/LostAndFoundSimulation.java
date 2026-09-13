@@ -14,13 +14,6 @@ import static io.gatling.javaapi.core.CoreDsl.scenario;
 import static io.gatling.javaapi.http.HttpDsl.http;
 import static io.gatling.javaapi.http.HttpDsl.status;
 
-/**
- * Load test for the read-heavy "browse" path (login, list, search, query) -
- * the traffic pattern real usage is expected to be dominated by. Doesn't
- * touch the claim endpoint on purpose: claiming has limited stock per item,
- * so a repeatable load test would either exhaust it or need a reset step
- * between runs - out of scope for a first pass at this.
- */
 public class LostAndFoundSimulation extends Simulation {
 
   private final HttpProtocolBuilder httpProtocol = http

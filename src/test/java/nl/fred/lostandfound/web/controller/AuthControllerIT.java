@@ -20,12 +20,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
-/**
- * Unlike the other *IT classes (which fabricate a JWT directly via the test
- * support's jwt() post-processor), this exercises the real login flow end to
- * end: password hashing/matching in AuthService and a real, self-issued token
- * that then actually authenticates a follow-up request.
- */
 @AutoConfigureMockMvc
 @SpringBootTest(classes = LostAndFoundApplication.class)
 @Transactional

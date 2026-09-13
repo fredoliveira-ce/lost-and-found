@@ -24,21 +24,6 @@ public class LostItemTextParser implements LostItemFileParser {
                 || (filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".txt"));
     }
 
-    // PMD CognitiveComplexity/CyclomaticComplexity: this is a state-machine
-    // text parser (a loop over lines, tracking a partially-built item across
-    // ItemName/Quantity/Place lines) - that shape is inherently a bit
-    // branchy. Splitting it further would mean passing the itemName/
-    // quantity/place trio in and out of helper methods, which fragments the
-    // logic without making any single piece easier to follow.
-    // PMD NullAssignment: itemName/quantity/place are reset to null on
-    // purpose between blocks - that's how this parser knows "nothing
-    // pending" vs. "still building the current item".
-    // PMD AssignmentInOperand: `quantity = parseQuantity(value)` inside a
-    // switch arrow arm is normal modern switch-expression style, not an
-    // accidental assignment-where-a-comparison-was-meant.
-    // PMD NonExhaustiveSwitch: the switch's subject is always one of the
-    // three literals FIELD_PATTERN's group(1) can capture, so a default
-    // arm would be unreachable dead code - see the comment on the switch.
     @SuppressWarnings({
             "PMD.CognitiveComplexity",
             "PMD.CyclomaticComplexity",
@@ -85,9 +70,6 @@ public class LostItemTextParser implements LostItemFileParser {
                 }
                 case "Quantity" -> quantity = parseQuantity(value);
                 case "Place" -> place = value;
-                // No default: FIELD_PATTERN only ever captures one of the three
-                // literals above into group(1), so a default arm here would be
-                // unreachable dead code.
             }
         }
 
