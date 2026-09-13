@@ -27,7 +27,7 @@ Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
 
 `./mvnw verify` also runs SpotBugs and PMD, and fails the build on real
 findings — both are wired into the `verify` phase, so they run every time
-CI (or you) runs the full check. The ruleset lives in `pmd-ruleset.xml`;
+CI (or you) runs the full check. The ruleset lives in `pmd-ruleset.xml`.
 
 SonarQube is also wired in (`sonar-maven-plugin`), but not bound to any
 build phase, since it needs a running server this project doesn't assume
@@ -41,6 +41,13 @@ docker run -d --name sonarqube -p 9000:9000 sonarqube:community
 Run `verify` first (in the same command, as above) so JaCoCo's report already
 exists on disk — otherwise Sonar reports 0% coverage. On Windows, quote each
 `-D` flag as shown; without quotes, `cmd.exe` can mis-split the URL.
+
+![SonarQube dashboard: quality gate passed, 0 open issues, 95.2% coverage](docs/screenshots/sonar-dashboard.png)
+
+The 61 "accepted issues" are deliberate, documented calls, not hidden
+findings — things like this project's own Mockito style, or a couple of
+already-justified PMD/SpotBugs trade-offs Sonar flags independently (see
+`SecurityConfig`'s CSRF comment, for one).
 
 `./mvnw test` also runs an ArchUnit check (`ArchitectureTest`) that enforces
 the layering by hand instead of by convention: the domain layer can't depend
@@ -75,6 +82,8 @@ stock per item, so a repeatable load test would either run out or need a
 reset step between runs. Gatling writes an HTML report under
 `target/gatling/` with response time percentiles and throughput.
 
+![Gatling report: 220 requests, 0 failures, response time percentiles per endpoint](docs/screenshots/gatling-report.png)
+
 ## Metrics
 
 Spring Boot Actuator and Micrometer are wired in, running on their own port
@@ -100,14 +109,20 @@ cd monitoring && docker compose up -d
   every 15s.
 - Three alert rules in `monitoring/alert-rules.yml`: the app being
   unreachable, a 5xx rate over 5%, and p99 latency over a second.
+
+  ![Prometheus alert rules: AppDown, HighErrorRate, HighP99Latency, all inactive/healthy](docs/screenshots/prometheus-alerts.png)
+
 - Alertmanager (`http://localhost:9093`) receives firing alerts. No
   Slack/email/PagerDuty is configured for this demo — alerts just show up
   in its UI — but that's one receiver block away in
   `monitoring/alertmanager.yml`.
 - Grafana (`http://localhost:3000`, `admin`/`admin`) comes with Prometheus
-  already added as a data source; no dashboard is provisioned, since a
-  demo project doesn't need a hand-built one — import a community one
-  (e.g. "JVM Micrometer", dashboard ID 4701) from Grafana.com instead.
+  already added as a data source; no dashboard is provisioned in this repo,
+  since a demo project doesn't need to ship one — a quick one built from
+  Explore (memory, CPU, live threads, request rate, all real numbers from
+  the running app) took a couple of minutes:
+
+  ![A quick custom Grafana dashboard: memory, CPU, thread count, and request rate](docs/screenshots/grafana-metrics.png)
 
 ## Running multiple instances
 
@@ -296,6 +311,8 @@ back.
 | GET | `/api/lost-items/query` | Authenticated | Free-text sentence parsed into a place/date/keyword filter |
 | POST | `/api/lost-items/{id}/claims` | Authenticated | Claim a quantity of a lost item (as the token's user) |
 | GET | `/api/admin/lost-items/claims` | Admin | List every lost item with its claimants (userId + resolved name) |
+
+![Swagger UI listing all seven endpoints, grouped by controller](docs/screenshots/swagger-ui.png)
 
 Errors come back as `{"type": "...", "message": "..."}` with a matching HTTP
 status: `404` (not found), `400` (bad request / validation), `401`
