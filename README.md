@@ -10,6 +10,23 @@ No commands, no Docker to install — just log in and click around. Use
 `alice` / `password123` as a regular user, or `admin` / `password123` to see
 the admin side (importing items, the claims report).
 
+## Contents
+
+- [Running it](#running-it)
+- [Trying it out](#trying-it-out)
+- [Static analysis](#static-analysis)
+- [Dependency scanning](#dependency-scanning)
+- [Load testing](#load-testing)
+- [Metrics](#metrics)
+- [Monitoring and alerts](#monitoring-and-alerts)
+- [Running multiple instances](#running-multiple-instances)
+- [Auth](#auth)
+- [Search](#search)
+- [API](#api)
+- [Architecture](#architecture)
+- [Known simplifications](#known-simplifications-and-what-production-would-add)
+- [Possible improvements](#possible-improvements)
+
 ## Running it
 
 ```bash
@@ -23,6 +40,75 @@ Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
 ```bash
 ./mvnw test              # unit tests
 ./mvnw verify             # unit + integration tests, plus static analysis (see below)
+```
+
+## Trying it out
+
+Upload a sample file (see `sample-data/`) as an admin — either the plain-text
+format from the assignment brief:
+
+```bash
+curl -X POST http://localhost:8081/api/admin/lost-items/import \
+  -F "file=@sample-data/lost-items.txt"
+```
+
+or an equivalent CSV (header `ItemName,Quantity,Place`, one row per item):
+
+```bash
+curl -X POST http://localhost:8081/api/admin/lost-items/import \
+  -F "file=@sample-data/lost-items.csv"
+```
+
+The endpoint picks the right parser from the file's content type or
+extension. Uploading is admin-only — see [Auth](#auth) below for the token.
+
+Log in (seed accounts: `alice`/`brian`/`carla` with role `USER`, `admin` with
+role `ADMIN`, all sharing the password `password123`):
+
+```bash
+curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "password123"}'
+```
+
+List lost items as a user (any authenticated account):
+
+```bash
+curl http://localhost:8081/api/lost-items \
+  -H "Authorization: Bearer <token>"
+```
+
+Search for items, typos and all (see [Search](#search) below):
+
+```bash
+curl "http://localhost:8081/api/lost-items/search?q=labtop" \
+  -H "Authorization: Bearer <token>"
+```
+
+Or ask for them in a sentence:
+
+```bash
+curl -G "http://localhost:8081/api/lost-items/query" \
+  --data-urlencode "q=black bag lost near the cafeteria last week" \
+  -H "Authorization: Bearer <token>"
+```
+
+Claim 2 of item `1` — who's claiming is taken from the token, not the request
+body:
+
+```bash
+curl -X POST http://localhost:8081/api/lost-items/1/claims \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 2}'
+```
+
+Admin view of every lost item and who has claimed it (needs an `admin`
+token):
+
+```bash
+curl http://localhost:8081/api/admin/lost-items/claims \
+  -H "Authorization: Bearer <admin token>"
 ```
 
 ## Static analysis
@@ -181,81 +267,14 @@ docker push <registry-host>:5000/lost-and-found:latest
 ```
 
 Update `app.yaml`'s `image:` to match and set `imagePullPolicy: Always`.
-`<registry-host>` is usually `host.docker.internal`, but Docker Desktop's
-own image-pull proxy failed against that hostname when this was tested —
-resolving it to an IP first (`getent hosts host.docker.internal` from
-inside a pod) and using that IP instead worked. This is host-specific;
-expect to have to work out the right value on whatever machine actually
-runs this.
 
-## Trying it out
+`<registry-host>` is usually `host.docker.internal`, but on this setup:
 
-Upload a sample file (see `sample-data/`) as an admin — either the plain-text
-format from the assignment brief:
-
-```bash
-curl -X POST http://localhost:8081/api/admin/lost-items/import \
-  -F "file=@sample-data/lost-items.txt"
-```
-
-or an equivalent CSV (header `ItemName,Quantity,Place`, one row per item):
-
-```bash
-curl -X POST http://localhost:8081/api/admin/lost-items/import \
-  -F "file=@sample-data/lost-items.csv"
-```
-
-The endpoint picks the right parser from the file's content type or
-extension. Uploading is admin-only — see **Auth** below for the token.
-
-Log in (seed accounts: `alice`/`brian`/`carla` with role `USER`, `admin` with
-role `ADMIN`, all sharing the password `password123`):
-
-```bash
-curl -X POST http://localhost:8081/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "alice", "password": "password123"}'
-```
-
-List lost items as a user (any authenticated account):
-
-```bash
-curl http://localhost:8081/api/lost-items \
-  -H "Authorization: Bearer <token>"
-```
-
-Search for items, typos and all (see **Search** below):
-
-```bash
-curl "http://localhost:8081/api/lost-items/search?q=labtop" \
-  -H "Authorization: Bearer <token>"
-```
-
-Or ask for them in a sentence:
-
-```bash
-curl -G "http://localhost:8081/api/lost-items/query" \
-  --data-urlencode "q=black bag lost near the cafeteria last week" \
-  -H "Authorization: Bearer <token>"
-```
-
-Claim 2 of item `1` — who's claiming is taken from the token, not the request
-body:
-
-```bash
-curl -X POST http://localhost:8081/api/lost-items/1/claims \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"quantity": 2}'
-```
-
-Admin view of every lost item and who has claimed it (needs an `admin`
-token):
-
-```bash
-curl http://localhost:8081/api/admin/lost-items/claims \
-  -H "Authorization: Bearer <admin token>"
-```
+- Docker Desktop's own image-pull proxy failed against that hostname.
+- Resolving it to an IP first (`getent hosts host.docker.internal` from
+  inside a pod) and using that IP instead worked.
+- This is host-specific — expect to work out the right value on whatever
+  machine actually runs this.
 
 ## Auth
 
@@ -293,15 +312,19 @@ Zero-score items are dropped. For example: with the sample data loaded,
 `Taxi`, one at the `Airport`.
 
 `GET /api/lost-items/query?q=` turns a sentence like "jewels lost at the
-airport" into a filter: place is matched against the actual distinct
-places in the database (not guessed), dates recognize a fixed set of
-phrases (today/yesterday/this or last week/month, "last N days"), and
-whatever words are left over are matched against the item name. Anything
-it doesn't recognize is just skipped, not guessed at. That example query
-strips "lost at the" as noise, recognizes `Airport` as a real place already
-in the database, and matches "jewels" against the item name — so out of
-the two items at the Airport (`Laptop`, `Jewels`), only `Jewels` comes
-back.
+airport" into a filter:
+
+- **Place** is matched against the actual distinct places already in the
+  database (not guessed).
+- **Dates** recognize a fixed set of phrases (today/yesterday/this or
+  last week/month, "last N days").
+- Whatever words are left over are matched against the **item name**.
+- Anything it doesn't recognize is just skipped, not guessed at.
+
+For that example: it strips "lost at the" as noise, recognizes `Airport`
+as a real place already in the database, and matches "jewels" against the
+item name — so out of the two items at the Airport (`Laptop`, `Jewels`),
+only `Jewels` comes back.
 
 ## API
 
@@ -406,7 +429,7 @@ config/
   (riskier, since two different physical items can genuinely share a
   description).
 
-## Possible Improvements
+## Possible improvements
 
 - **Interface Segregation is a bit weaker at the repository layer** — the
   repositories extend Spring Data's `JpaRepository` directly instead of a
