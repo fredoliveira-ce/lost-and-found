@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Kubernetes secrets (generated locally, see README "Running multiple instances") ###
+k8s/secret.yaml

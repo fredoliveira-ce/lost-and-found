@@ -1,0 +1,33 @@
+groups:
+  - name: lost-and-found
+    rules:
+      - alert: AppDown
+        expr: up{job="lost-and-found"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Lost & Found is down"
+          description: "Prometheus hasn't been able to scrape {{ $labels.instance }} for over a minute."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="lost-and-found", status=~"5.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{job="lost-and-found"}[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "More than 5% of requests have failed with a 5xx over the last 5 minutes."
+
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job="lost-and-found"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 latency above 1s"
+          description: "99th percentile request latency has stayed above 1 second for 5 minutes."

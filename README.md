@@ -28,12 +28,6 @@ Interactive API docs (Swagger UI) are at `http://localhost:8081/swagger-ui.html`
 `./mvnw verify` also runs SpotBugs and PMD, and fails the build on real
 findings — both are wired into the `verify` phase, so they run every time
 CI (or you) runs the full check. The ruleset lives in `pmd-ruleset.xml`;
-a few rules are excluded there with a reason each (things like
-`LawOfDemeter` and `GuardLogStatement`, which flag completely normal
-Spring/SLF4J code as a smell). Individual findings that don't fit this
-codebase get a local `@SuppressWarnings("PMD....")` with a one-line
-comment explaining why, rather than a blanket exclusion — see e.g.
-`SecurityConfig` or `LostItemTextParser`.
 
 SonarQube is also wired in (`sonar-maven-plugin`), but not bound to any
 build phase, since it needs a running server this project doesn't assume
@@ -83,12 +77,98 @@ reset step between runs. Gatling writes an HTML report under
 
 ## Metrics
 
-Spring Boot Actuator and Micrometer are wired in. `/actuator/health` is
-public (for a load balancer or container to poll); everything else, like
-`/actuator/metrics` and `/actuator/prometheus`, needs an admin token, same
-as the rest of the admin API. Prometheus can scrape `/actuator/prometheus`
-directly. Alongside the usual HTTP/JVM metrics, there's one custom counter,
-`lostitem.claims`, that counts successful claims.
+Spring Boot Actuator and Micrometer are wired in, running on their own port
+(`8082`, `management.server.port`) instead of the main API's `8081`. A
+collector like Prometheus can't hold a rotating login token, so this endpoint
+relies on network isolation instead of app-level auth — in production
+that port would be restricted to the monitoring network only, never
+exposed alongside the public API. Alongside the usual HTTP/JVM metrics,
+there's one custom counter, `lostitem.claims`, that counts successful
+claims.
+
+## Monitoring and alerts
+
+`monitoring/` has a small Prometheus + Alertmanager + Grafana stack that
+scrapes the app and can actually fire alerts, not just expose numbers:
+
+```bash
+./mvnw spring-boot:run
+cd monitoring && docker compose up -d
+```
+
+- Prometheus (`http://localhost:9090`) reads `:8082/actuator/prometheus`
+  every 15s.
+- Three alert rules in `monitoring/alert-rules.yml`: the app being
+  unreachable, a 5xx rate over 5%, and p99 latency over a second.
+- Alertmanager (`http://localhost:9093`) receives firing alerts. No
+  Slack/email/PagerDuty is configured for this demo — alerts just show up
+  in its UI — but that's one receiver block away in
+  `monitoring/alertmanager.yml`.
+- Grafana (`http://localhost:3000`, `admin`/`admin`) comes with Prometheus
+  already added as a data source; no dashboard is provisioned, since a
+  demo project doesn't need a hand-built one — import a community one
+  (e.g. "JVM Micrometer", dashboard ID 4701) from Grafana.com instead.
+
+## Running multiple instances
+
+Running more than one instance needs two things fixed first, both handled
+behind config rather than code changes:
+
+- **A real, shared database.** H2 (the default) is in-memory and private
+  to each JVM — two instances would each have their own, invisible to
+  each other. A `prod` Spring profile switches to a real one:
+
+  ```bash
+  docker compose up -d          # starts Postgres, see docker-compose.yml
+  SPRING_PROFILES_ACTIVE=prod ./mvnw spring-boot:run
+  ```
+
+- **A shared JWT signing key.** By default a fresh RSA key pair is
+  generated on every startup, so a token issued by one instance fails on
+  another. Generate one real key pair once and share it via
+  `APP_JWT_PRIVATE_KEY`/`APP_JWT_PUBLIC_KEY` (base64 DER, PKCS8/X509):
+
+  ```bash
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out key.pem
+  openssl pkcs8 -topk8 -nocrypt -in key.pem -outform DER | base64 -w0   # -> APP_JWT_PRIVATE_KEY
+  openssl pkey -in key.pem -pubout -outform DER | base64 -w0            # -> APP_JWT_PUBLIC_KEY
+  ```
+
+### Kubernetes
+
+`k8s/` has manifests for exactly this: a `ConfigMap` for non-secret
+config, a `Secret` for the DB password and JWT keys (never commit a real
+one — copy `k8s/secret.example.yaml` to `k8s/secret.yaml`, gitignored,
+and fill in real values), a single-replica Postgres `Deployment` with a
+`PersistentVolumeClaim`, and the app itself at 3 replicas behind a
+`Service`, with `/actuator/health/liveness` and `/actuator/health/readiness`
+probes on the management port.
+
+```bash
+docker build -t lost-and-found:latest .
+kubectl apply -f k8s/configmap.yaml -f k8s/secret.yaml -f k8s/postgres.yaml -f k8s/app.yaml
+```
+
+If your cluster is single-node and shares the host's Docker image cache
+(older Docker Desktop Kubernetes), that's all you need — `app.yaml`'s
+`imagePullPolicy: Never` will find the image already there. A multi-node
+local cluster (newer Docker Desktop Kubernetes, `kind`, etc.) can't see
+locally-built images on its worker nodes, so it needs a registry reachable
+from inside the cluster:
+
+```bash
+docker run -d -p 5000:5000 --restart=always --name registry registry:2
+docker tag lost-and-found:latest <registry-host>:5000/lost-and-found:latest
+docker push <registry-host>:5000/lost-and-found:latest
+```
+
+Update `app.yaml`'s `image:` to match and set `imagePullPolicy: Always`.
+`<registry-host>` is usually `host.docker.internal`, but Docker Desktop's
+own image-pull proxy failed against that hostname when this was tested —
+resolving it to an IP first (`getent hosts host.docker.internal` from
+inside a pod) and using that IP instead worked. This is host-specific;
+expect to have to work out the right value on whatever machine actually
+runs this.
 
 ## Trying it out
 
@@ -252,13 +332,14 @@ config/
 
 ## Known simplifications (and what production would add)
 
-- **Schema managed by Hibernate (`ddl-auto=create-drop`)** against an
-  in-memory H2 database. Production would use a real, persistent database —
-  PostgreSQL is the natural choice here, since claim safety already relies
-  on a row-level lock (`@Lock(PESSIMISTIC_WRITE)` in `ClaimService`), and
-  Postgres's locking behavior is exactly what that code assumes. Schema
-  changes would go through Flyway or Liquibase migrations instead of
-  Hibernate auto-generating the schema.
+- **H2 (`ddl-auto=create-drop`) is the default database.** A `prod`
+  profile is available (see "Running multiple instances") since claim
+  safety already relies on a row-level lock
+  (`@Lock(PESSIMISTIC_WRITE)` in `ClaimService`), and Postgres's locking
+  behavior is exactly what that code assumes — but it still uses
+  `ddl-auto=update` rather than real migrations. Production would go
+  through Flyway or Liquibase instead of Hibernate auto-generating the
+  schema.
 - **No pagination** on `GET /api/lost-items` (or `/search`, `/query`) — fine
   at demo scale, would need `Pageable` for a real dataset.
 - **Search is local, not AI-powered.** Fuzzy matching and query parsing
@@ -272,10 +353,6 @@ config/
 
 ## Possible Improvements
 
-- **Split `AdminLostItemController`** into separate import and
-  claims-reporting controllers — it currently pulls in five constructor
-  dependencies to serve two endpoints that don't share much beyond both being
-  "admin".
 - **Interface Segregation is a bit weaker at the repository layer** — the
   repositories extend Spring Data's `JpaRepository` directly instead of a
   smaller interface of their own, so services can technically see methods

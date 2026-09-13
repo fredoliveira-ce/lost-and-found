@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      - POSTGRES_DB=lostandfound
+      - POSTGRES_USER=lostandfound
+      - POSTGRES_PASSWORD=lostandfound
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

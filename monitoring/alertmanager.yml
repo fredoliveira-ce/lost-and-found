@@ -1,0 +1,12 @@
+route:
+  receiver: "default"
+  group_by: ["alertname"]
+  group_wait: 10s
+  group_interval: 30s
+  repeat_interval: 1h
+
+receivers:
+  # No integrations configured for this demo - firing alerts are still
+  # visible in the Alertmanager UI (http://localhost:9093/#/alerts). Add a
+  # Slack/email/PagerDuty config here to actually page someone.
+  - name: "default"
