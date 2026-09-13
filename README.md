@@ -312,6 +312,31 @@ back.
 | POST | `/api/lost-items/{id}/claims` | Authenticated | Claim a quantity of a lost item (as the token's user) |
 | GET | `/api/admin/lost-items/claims` | Admin | List every lost item with its claimants (userId + resolved name) |
 
+Claiming looks like a simple write, but it's the one endpoint here with real
+concurrency and security logic behind it:
+
+```mermaid
+flowchart TD
+    A([User requests to claim a quantity of a lost item]) --> B["Lock the lost item row (PESSIMISTIC_WRITE) —
+blocks concurrent claims on the same item"]
+    B --> C{Lost item exists?}
+    C -- No --> C1([404 Not Found])
+    C -- Yes --> D[Sum quantity already claimed by anyone]
+    D --> E["remaining = item.quantity − alreadyClaimed"]
+    E --> F{requested quantity > remaining?}
+    F -- Yes --> F1([409 Conflict])
+    F -- No --> G["Save the claim
+(userId comes from the JWT, never the request body)"]
+    G --> H[Increment the lostitem.claims metric]
+    H --> I([201 Created])
+```
+
+The row-level lock is what makes two people claiming the last unit at the
+same time safe — one succeeds, one gets a 409, never an oversell. Taking
+`userId` from the JWT instead of the request body is deliberate too: an
+earlier version trusted the body directly, which let anyone claim on
+someone else's behalf just by changing a field.
+
 ![Swagger UI listing all seven endpoints, grouped by controller](docs/screenshots/swagger-ui.png)
 
 Errors come back as `{"type": "...", "message": "..."}` with a matching HTTP
