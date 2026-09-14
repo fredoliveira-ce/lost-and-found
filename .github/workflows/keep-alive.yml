@@ -1,0 +1,18 @@
+name: Keep Render instance warm
+
+# Render's free tier spins the backend down after ~15 minutes of no traffic,
+# and a cold start can take up to a minute - annoying for anyone opening the
+# demo link cold. Pinging every 10 minutes keeps it from ever spinning down.
+# The response status doesn't matter (even a 401 counts as traffic); only
+# reachability does.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend
+        run: curl -s -o /dev/null -w 'HTTP %{http_code}\n' https://lost-and-found-c3sp.onrender.com/ || true
